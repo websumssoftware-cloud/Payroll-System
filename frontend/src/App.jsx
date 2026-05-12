@@ -11,7 +11,7 @@ import './App.css';
 
 const API_URL = 'https://payroll-system-abxy.onrender.com/api';
 
-const KusumAdmin = () => {
+const KusumAdmin = ({ onLogout }) => {
   const [activeTab, setActiveTab] = useState('Overview');
   const [currentTime, setCurrentTime] = useState(new Date());
   const [employees, setEmployees] = useState([]);
@@ -915,7 +915,7 @@ const KusumAdmin = () => {
         </nav>
         <div className="sidebar-footer">
           <div className="admin-profile-box"><div className="admin-avatar">AD</div><div className="admin-meta"><span className="admin-name">Super Admin</span><span className="admin-role">System Manager</span></div></div>
-          <button className="logout-btn"><LogOut size={18} /> <span>Logout</span></button>
+          <button className="logout-btn" onClick={onLogout}><LogOut size={18} /> <span>Logout</span></button>
         </div>
       </aside>
 
@@ -989,4 +989,87 @@ const KusumAdmin = () => {
   );
 };
 
-export default KusumAdmin;
+const Login = ({ onLogin }) => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      const res = await axios.post(`${API_URL}/auth/login`, { email, password });
+      localStorage.setItem('token', res.data.token);
+      localStorage.setItem('user', JSON.stringify(res.data.user));
+      onLogin(res.data.token);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Login failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="login-container animate-fade">
+      <div className="login-card">
+        <div className="login-header">
+          <div className="brand-logo large"><Sprout color="#fff" size={32} /></div>
+          <h2>Kusum Farm</h2>
+          <p>Sign in to your account</p>
+        </div>
+        {error && <div className="login-error"><AlertCircle size={16} /> {error}</div>}
+        <form onSubmit={handleSubmit}>
+          <div className="input-group">
+            <label>Email Address</label>
+            <div className="input-with-icon">
+              <Mail size={18} />
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="admin@kusum.com" required />
+            </div>
+          </div>
+          <div className="input-group">
+            <label>Password</label>
+            <div className="input-with-icon">
+              <Settings size={18} />
+              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required />
+            </div>
+          </div>
+          <button type="submit" className="login-btn" disabled={loading}>
+            {loading ? 'Signing in...' : 'Sign In'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+const App = () => {
+  const [token, setToken] = useState(localStorage.getItem('token'));
+
+  const handleLogin = (newToken) => {
+    setToken(newToken);
+    axios.defaults.headers.common['x-auth-token'] = newToken;
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    delete axios.defaults.headers.common['x-auth-token'];
+    setToken(null);
+  };
+
+  useEffect(() => {
+    if (token) {
+      axios.defaults.headers.common['x-auth-token'] = token;
+    }
+  }, [token]);
+
+  return (
+    <div className="app-root">
+      {!token ? <Login onLogin={handleLogin} /> : <KusumAdmin onLogout={handleLogout} />}
+    </div>
+  );
+};
+
+export default App;
