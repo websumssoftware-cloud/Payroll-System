@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "sdkVersion": "54.0.0",
+    "name": "Payroll Mobile",
+    "slug": "mobile-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.websum.payroll",
+      "usesCleartextTraffic": true,
+      "adaptiveIcon": {
+        "backgroundColor": "#ffffff"
+      }
+    },
+    "web": {
+      "favicon": null
+    },
+    "extra": {
+      "eas": {
+        "projectId": "037798ec-dc50-419e-86e5-548768873054"
+      }
+    }
+  }
+}
