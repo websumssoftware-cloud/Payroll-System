@@ -21,7 +21,7 @@ const AttendanceLog = () => {
 
     const fetchLogs = async () => {
         try {
-            const res = await axios.get('http://localhost:5000/api/attendance/summary', {
+            const res = await axios.get('https://payroll-system-abxy.onrender.com/api/attendance/summary', {
                 headers: { 'x-auth-token': localStorage.getItem('token') }
             });
             setLogs(res.data.attendance);

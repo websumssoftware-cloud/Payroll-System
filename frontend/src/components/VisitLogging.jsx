@@ -26,7 +26,7 @@ const VisitLogging = () => {
                 // Optional: Reverse geocoding could be done here
                 try {
                     // Simulating check-in
-                    const res = await axios.post('http://localhost:5000/api/visits/check-in', {
+                    const res = await axios.post('https://payroll-system-abxy.onrender.com/api/visits/check-in', {
                         lat: latitude,
                         lng: longitude,
                         address: `GPS: ${latitude}, ${longitude}`,

@@ -14,7 +14,7 @@ const SalaryManagement = () => {
 
     const fetchRecords = async () => {
         try {
-            const res = await axios.get('http://localhost:5000/api/salary/all', {
+            const res = await axios.get('https://payroll-system-abxy.onrender.com/api/salary/all', {
                 headers: { 'x-auth-token': localStorage.getItem('token') }
             });
             setRecords(res.data);
@@ -29,7 +29,7 @@ const SalaryManagement = () => {
         e.preventDefault();
         try {
             // Fetch all employees first
-            const empRes = await axios.get('http://localhost:5000/api/employees', {
+            const empRes = await axios.get('https://payroll-system-abxy.onrender.com/api/employees', {
                 headers: { 'x-auth-token': localStorage.getItem('token') }
             });
             
@@ -37,7 +37,7 @@ const SalaryManagement = () => {
             // In a real app, this would be a single bulk endpoint
             for (const emp of empRes.data) {
                 if (emp.role === 'Employee') {
-                    await axios.post('http://localhost:5000/api/salary/calculate', {
+                    await axios.post('https://payroll-system-abxy.onrender.com/api/salary/calculate', {
                         employeeId: emp._id,
                         ...runData
                     }, {

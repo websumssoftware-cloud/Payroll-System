@@ -41,7 +41,7 @@ const Dashboard = ({ user }) => {
 
     const fetchAdminStats = async () => {
         try {
-            const res = await axios.get('http://localhost:5000/api/employees/dashboard-stats', {
+            const res = await axios.get('https://payroll-system-abxy.onrender.com/api/employees/dashboard-stats', {
                 headers: { 'x-auth-token': localStorage.getItem('token') }
             });
             setRealStats(res.data);
@@ -50,7 +50,7 @@ const Dashboard = ({ user }) => {
 
     const fetchEmployees = async () => {
         try {
-            const res = await axios.get('http://localhost:5000/api/employees', {
+            const res = await axios.get('https://payroll-system-abxy.onrender.com/api/employees', {
                 headers: { 'x-auth-token': localStorage.getItem('token') }
             });
             setEmployees(res.data.filter(e => e.role === 'Employee'));
@@ -59,7 +59,7 @@ const Dashboard = ({ user }) => {
 
     const fetchAllAttendance = async () => {
         try {
-            const res = await axios.get('http://localhost:5000/api/attendance', {
+            const res = await axios.get('https://payroll-system-abxy.onrender.com/api/attendance', {
                 headers: { 'x-auth-token': localStorage.getItem('token') }
             });
             setAllAttendance(res.data);
@@ -76,7 +76,7 @@ const Dashboard = ({ user }) => {
 
     const fetchLeaves = async () => {
         try {
-            const res = await axios.get('http://localhost:5000/api/leaves/all', {
+            const res = await axios.get('https://payroll-system-abxy.onrender.com/api/leaves/all', {
                 headers: { 'x-auth-token': localStorage.getItem('token') }
             });
             setLeaves(res.data.filter(l => l.status === 'Pending'));
@@ -87,7 +87,7 @@ const Dashboard = ({ user }) => {
 
     const handleLeaveAction = async (id, status) => {
         try {
-            await axios.put(`http://localhost:5000/api/leaves/${id}`, { status }, {
+            await axios.put(`https://payroll-system-abxy.onrender.com/api/leaves/${id}`, { status }, {
                 headers: { 'x-auth-token': localStorage.getItem('token') }
             });
             fetchLeaves();

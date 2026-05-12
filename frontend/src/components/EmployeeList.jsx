@@ -22,7 +22,7 @@ const EmployeeList = () => {
 
     const fetchEmployees = async () => {
         try {
-            const res = await axios.get('http://localhost:5000/api/employees', {
+            const res = await axios.get('https://payroll-system-abxy.onrender.com/api/employees', {
                 headers: { 'x-auth-token': localStorage.getItem('token') }
             });
             setEmployees(res.data);

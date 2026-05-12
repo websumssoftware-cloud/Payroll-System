@@ -22,7 +22,7 @@ import * as ImagePicker from 'expo-image-picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 const { width } = Dimensions.get('window');
-const API_URL = 'http://10.198.189.109:5000/api'; 
+const API_URL = 'https://payroll-system-abxy.onrender.com/api'; 
 const MAX_WIDTH = 480;
 
 export default function App() {
