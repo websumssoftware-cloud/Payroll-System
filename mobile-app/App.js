@@ -10,7 +10,7 @@ import {
   ChevronRight, User, CheckCircle, XCircle, Palmtree, 
   ArrowRightCircle, Download, Send, PlusCircle, Leaf, Sprout, 
   Building2, Camera, Plus, Home, LayoutDashboard, Search, Settings, Phone, Info,
-  FileDown, MapPinned, Target
+  FileDown, Target
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -22,7 +22,7 @@ import * as ImagePicker from 'expo-image-picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 const { width } = Dimensions.get('window');
-const API_URL = 'https://payroll-system-abxy.onrender.com/api'; 
+const API_URL = 'http://192.168.1.4:5000/api'; 
 const MAX_WIDTH = 480;
 
 export default function App() {
@@ -37,6 +37,7 @@ export default function App() {
   const [clientName, setClientName] = useState('');
   const [visitPurpose, setVisitPurpose] = useState('');
   const [visitImage, setVisitImage] = useState(null);
+  const [visitImageBase64, setVisitImageBase64] = useState(null);
   const [isTracking, setIsTracking] = useState(false);
   const [visitView, setVisitView] = useState('New'); // 'New' or 'History'
   const [visitHistory, setVisitHistory] = useState([]);
@@ -64,6 +65,19 @@ export default function App() {
   const [lReason, setLReason] = useState('');
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
+  const [visitStartLocation, setVisitStartLocation] = useState(null);
+
+  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371; // Radius of the earth in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c; // Distance in km
+  };
 
   const onStartChange = (event, selectedDate) => {
     setShowStartPicker(false);
@@ -189,25 +203,57 @@ export default function App() {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [4, 3],
-      quality: 0.5,
+      quality: 0.4,
+      base64: true,
     });
     if (!result.canceled) {
       setVisitImage(result.assets[0].uri);
+      setVisitImageBase64(`data:image/jpeg;base64,${result.assets[0].base64}`);
     }
   };
 
-  const startTracking = () => {
+  const startTracking = (startLoc) => {
     setIsTracking(true);
+    const initialLoc = startLoc || visitStartLocation;
     if (trackingInterval.current) clearInterval(trackingInterval.current);
     trackingInterval.current = setInterval(async () => {
       try {
         const loc = await Location.getCurrentPositionAsync({});
-        await axios.post(`${API_URL}/visits/track`, {
-          employeeId: user._id || user.id,
-          location: { lat: loc.coords.latitude, lng: loc.coords.longitude }
-        });
+        const currentPos = { lat: loc.coords.latitude, lng: loc.coords.longitude };
+        
+        // Check distance if we have a start location
+        if (initialLoc) {
+          const distance = calculateDistance(
+            initialLoc.lat, initialLoc.lng, 
+            currentPos.lat, currentPos.lng
+          );
+          
+          if (distance > 1) { // 1km range
+            Alert.alert(
+              "Range Alert", 
+              `You have moved ${distance.toFixed(2)}km away from the site. Please stay within 1km.`
+            );
+            // Optionally notify backend about range violation
+            await axios.post(`${API_URL}/visits/track`, {
+              employeeId: user._id || user.id,
+              location: currentPos,
+              notes: `OUT OF RANGE: ${distance.toFixed(2)}km`
+            });
+          } else {
+            await axios.post(`${API_URL}/visits/track`, {
+              employeeId: user._id || user.id,
+              location: currentPos,
+              notes: 'Periodic Tracking'
+            });
+          }
+        } else {
+          await axios.post(`${API_URL}/visits/track`, {
+            employeeId: user._id || user.id,
+            location: currentPos
+          });
+        }
       } catch (e) { console.error('Tracking Error', e); }
-    }, 120000);
+    }, 60000); // Check every minute
   };
 
   const stopTracking = () => {
@@ -229,7 +275,7 @@ export default function App() {
         employeeId: user._id || user.id,
         clientName,
         purpose: visitPurpose,
-        imageUrl: visitImage,
+        imageUrl: visitImageBase64 || "",
         location: {
           lat: loc.coords.latitude,
           lng: loc.coords.longitude,
@@ -242,7 +288,10 @@ export default function App() {
       setClientName('');
       setVisitPurpose('');
       setVisitImage(null);
-      startTracking();
+      setVisitImageBase64(null);
+      const startLoc = { lat: loc.coords.latitude, lng: loc.coords.longitude };
+      setVisitStartLocation(startLoc);
+      startTracking(startLoc);
       setActiveTab('Home');
     } catch (err) {
       Alert.alert('Error', 'Failed to log visit: ' + (err.response?.data?.message || err.message));
@@ -450,7 +499,7 @@ export default function App() {
 
       <TouchableOpacity style={styles.requestBtnOuter} onPress={() => setActiveTab('Visits')}>
         <View style={styles.requestBtnInner}>
-          <MapPinned color="#2563EB" size={22} /><Text style={styles.requestBtnText}>Record Site Visit</Text>
+          <MapPin color="#2563EB" size={22} /><Text style={styles.requestBtnText}>Record Site Visit</Text>
         </View>
       </TouchableOpacity>
       <View style={{height: 100}} />
@@ -537,7 +586,7 @@ export default function App() {
         {visitView === 'New' ? (
           <View style={styles.visitFormCard}>
             <View style={styles.formHeaderRow}>
-              <View style={styles.formIconBg}><MapPinned color="#2563EB" size={24} /></View>
+              <View style={styles.formIconBg}><MapPin color="#2563EB" size={24} /></View>
               <View>
                 <Text style={styles.formTitle}>Add Visit Record</Text>
                 <Text style={styles.formSub}>Enter client and farm details</Text>
@@ -850,13 +899,16 @@ export default function App() {
 
       <View style={styles.bottomNav}>
         {[
-          {t: 'Home', i: Home}, {t: 'Attendance', i: Calendar}, {t: 'Visits', i: MapPinned}, {t: 'Reports', i: FileText}, {t: 'Profile', i: User}
-        ].map((item, i) => (
-          <TouchableOpacity key={i} style={styles.navItem} onPress={() => setActiveTab(item.t)}>
-            <item.i color={activeTab === item.t ? '#2563EB' : '#94A3B8'} size={24} />
-            <Text style={[styles.navLabel, activeTab === item.t && styles.navActive]}>{item.t}</Text>
-          </TouchableOpacity>
-        ))}
+          {t: 'Home', i: Home}, {t: 'Attendance', i: Calendar}, {t: 'Visits', i: MapPin}, {t: 'Reports', i: FileText}, {t: 'Profile', i: User}
+        ].map((item, i) => {
+          const Icon = item.i;
+          return (
+            <TouchableOpacity key={i} style={styles.navItem} onPress={() => setActiveTab(item.t)}>
+              <Icon color={activeTab === item.t ? '#2563EB' : '#94A3B8'} size={24} />
+              <Text style={[styles.navLabel, activeTab === item.t && styles.navActive]}>{item.t}</Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
     </SafeAreaView>
   );

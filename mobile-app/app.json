@@ -15,13 +15,11 @@
     },
     "android": {
       "package": "com.websum.payroll",
-      "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "backgroundColor": "#ffffff"
       }
     },
     "web": {
-      "favicon": null
     },
     "extra": {
       "eas": {

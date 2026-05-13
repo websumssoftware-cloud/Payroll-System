@@ -41,7 +41,7 @@ const Dashboard = ({ user }) => {
 
     const fetchAdminStats = async () => {
         try {
-            const res = await axios.get('https://payroll-system-abxy.onrender.com/api/employees/dashboard-stats', {
+            const res = await axios.get('http://localhost:5000/api/employees/dashboard-stats', {
                 headers: { 'x-auth-token': localStorage.getItem('token') }
             });
             setRealStats(res.data);
@@ -50,7 +50,7 @@ const Dashboard = ({ user }) => {
 
     const fetchEmployees = async () => {
         try {
-            const res = await axios.get('https://payroll-system-abxy.onrender.com/api/employees', {
+            const res = await axios.get('http://localhost:5000/api/employees', {
                 headers: { 'x-auth-token': localStorage.getItem('token') }
             });
             setEmployees(res.data.filter(e => e.role === 'Employee'));
@@ -59,7 +59,7 @@ const Dashboard = ({ user }) => {
 
     const fetchAllAttendance = async () => {
         try {
-            const res = await axios.get('https://payroll-system-abxy.onrender.com/api/attendance', {
+            const res = await axios.get('http://localhost:5000/api/attendance', {
                 headers: { 'x-auth-token': localStorage.getItem('token') }
             });
             setAllAttendance(res.data);
@@ -76,7 +76,7 @@ const Dashboard = ({ user }) => {
 
     const fetchLeaves = async () => {
         try {
-            const res = await axios.get('https://payroll-system-abxy.onrender.com/api/leaves/all', {
+            const res = await axios.get('http://localhost:5000/api/leaves/all', {
                 headers: { 'x-auth-token': localStorage.getItem('token') }
             });
             setLeaves(res.data.filter(l => l.status === 'Pending'));
@@ -87,7 +87,7 @@ const Dashboard = ({ user }) => {
 
     const handleLeaveAction = async (id, status) => {
         try {
-            await axios.put(`https://payroll-system-abxy.onrender.com/api/leaves/${id}`, { status }, {
+            await axios.put(`http://localhost:5000/api/leaves/${id}`, { status }, {
                 headers: { 'x-auth-token': localStorage.getItem('token') }
             });
             fetchLeaves();
@@ -212,7 +212,6 @@ const Dashboard = ({ user }) => {
                                 <tr style={{ background: 'transparent' }}>
                                     <th style={{ background: 'transparent', border: 'none', color: '#64748b', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Employee</th>
                                     <th style={{ background: 'transparent', border: 'none', color: '#64748b', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Time</th>
-                                    <th style={{ background: 'transparent', border: 'none', color: '#64748b', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Location</th>
                                     <th style={{ background: 'transparent', border: 'none', color: '#64748b', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px', textAlign: 'center' }}>Status</th>
                                 </tr>
                             </thead>
@@ -255,12 +254,7 @@ const Dashboard = ({ user }) => {
                                                 <td style={{ border: 'none', fontWeight: '700', color: isPresent ? '#1e293b' : '#94a3b8' }}>
                                                     {lastPunch?.time || '---'}
                                                 </td>
-                                                <td style={{ border: 'none', color: '#64748b', fontSize: '0.9rem' }}>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                                        <MapPin size={14} color={isPresent ? '#3b82f6' : '#94a3b8'} />
-                                                        {lastPunch?.location?.address?.split(',')[0] || '---'}
-                                                    </div>
-                                                </td>
+
                                                 <td style={{ borderRadius: '0 16px 16px 0', border: 'none', textAlign: 'center' }}>
                                                     <span style={{ 
                                                         padding: '6px 14px', 

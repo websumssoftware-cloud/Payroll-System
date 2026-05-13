@@ -4,12 +4,13 @@ import {
   Bell, Search, Plus, ArrowUpRight, ArrowDownRight, Clock, MoreVertical,
   LogOut, Sprout, CheckCircle2, XCircle, AlertCircle, FileText, 
   ExternalLink, ChevronRight, Filter, Download, UserPlus, Eye, Mail, Phone, Calendar,
-  FileClock, FileCheck, UserCheck, ClipboardList
+  FileClock, FileCheck, UserCheck, ClipboardList, MapPinned, Edit2, Trash2
 } from 'lucide-react';
 import axios from 'axios';
 import './App.css';
+import LiveTracking from './components/LiveTracking';
 
-const API_URL = 'https://payroll-system-abxy.onrender.com/api';
+const API_URL = 'http://localhost:5000/api';
 
 const KusumAdmin = ({ onLogout }) => {
   const [activeTab, setActiveTab] = useState('Overview');
@@ -52,9 +53,9 @@ const KusumAdmin = ({ onLogout }) => {
         axios.get(`${API_URL}/leaves`)
       ]);
       setEmployees(empRes.data || []);
-      setAttendance(attRes.data || []);
-      setVisits(visitRes.data || []);
-      setLeaves(leaveRes.data || []);
+      setAttendance((attRes.data || []).sort((a, b) => new Date(b.date) - new Date(a.date)));
+      setVisits((visitRes.data || []).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)));
+      setLeaves((leaveRes.data || []).sort((a, b) => new Date(b.fromDate) - new Date(a.fromDate)));
     } catch (err) {
       console.error('API Error:', err);
     } finally {
@@ -341,44 +342,49 @@ const KusumAdmin = ({ onLogout }) => {
         <div className="grid-card full-card">
           <div className="table-responsive">
             <table className="modern-table">
-              <thead><tr><th>Employee</th><th>Contact</th><th>Role</th><th>Activity ({employeeFilterView})</th><th>Salary</th><th>Actions</th></tr></thead>
+              <thead>
+                <tr>
+                  <th>Employee ID</th>
+                  <th>Name</th>
+                  <th>Role</th>
+                  <th>Contact</th>
+                  <th>Salary</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
               <tbody>
-                {filteredEmployees.map((e) => {
-                  const empLogs = attendance.filter(a => {
-                    const isEmp = a.employee?._id === e._id || a.employee === e._id;
-                    if (!isEmp) return false;
-                    if (employeeFilterView === 'Daily') return a.date === employeeFilterDate;
-                    return a.date >= weekRange.start && a.date <= weekRange.end;
-                  });
-                  
-                  const presentCount = empLogs.filter(l => l.status === 'Checked In').length;
-                  const totalExpected = employeeFilterView === 'Daily' ? 1 : 7;
-                  const percentage = Math.min(100, (presentCount / totalExpected) * 100);
-
-                  return (
-                    <tr key={e._id}>
-                      <td><div className="user-info"><div className="u-avatar large">{e.name?.charAt(0)}</div><div><div className="u-name">{e.name}</div><div className="u-id">ID: #{e._id.slice(-5)}</div></div></div></td>
-                      <td><div className="contact-info"><div><Mail size={12} /> {e.email}</div><div><Phone size={12} /> {e.phone}</div></div></td>
-                      <td><span className="role-chip">{e.role}</span></td>
-                      <td>
-                        <div style={{ width: '120px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '10px', fontWeight: '700' }}>
-                            <span style={{ color: percentage > 50 ? '#10B981' : '#EF4444' }}>{presentCount} Days Present</span>
-                            <span>{percentage.toFixed(0)}%</span>
-                          </div>
-                          <div className="progress-bar"><div className="progress" style={{ width: `${percentage}%`, background: percentage > 50 ? '#10B981' : '#F59E0B' }} /></div>
+                {filteredEmployees.map((e) => (
+                  <tr key={e._id}>
+                    <td style={{ fontWeight: '700', color: '#1e293b' }}>
+                      {e.employeeId || 'EMP' + String(e._id).slice(-3).toUpperCase()}
+                    </td>
+                    <td>
+                      <div className="user-info">
+                        <div className="u-avatar" style={{ backgroundColor: '#10b981' }}>{e.name?.charAt(0)}</div>
+                        <div className="u-name" style={{ fontWeight: '600' }}>{e.name}</div>
+                      </div>
+                    </td>
+                    <td style={{ color: '#64748b' }}>{e.designation || 'Field Executive'}</td>
+                    <td>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b', fontSize: '13px' }}>
+                          <Phone size={14} /> {e.phone || '+91 98765 43210'}
                         </div>
-                      </td>
-                      <td className="salary-text">₹{e.salary.toLocaleString()}</td>
-                      <td>
-                        <div className="table-actions">
-                          <button className="icon-btn-s" onClick={() => { setSelectedEmp(e); setModalType('view'); setShowModal(true); }}><Eye size={16} /></button>
-                          <button className="icon-btn-s" onClick={() => { setSelectedEmp(e); setModalType('edit'); setShowModal(true); }}><Settings size={16} /></button>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b', fontSize: '13px' }}>
+                          <Mail size={14} /> {e.email}
                         </div>
-                      </td>
-                    </tr>
-                  );
-                })}
+                      </div>
+                    </td>
+                    <td style={{ fontWeight: '700', color: '#10b981' }}>₹{e.salary?.toLocaleString() || '25,000'}</td>
+                    <td>
+                      <div className="action-btns">
+                        <button className="view-btn" onClick={() => { setSelectedEmp(e); setModalType('view'); setShowModal(true); }}><Eye size={16} /></button>
+                        <button className="edit-btn" onClick={() => { setSelectedEmp(e); setModalType('edit'); setShowModal(true); }}><Edit2 size={16} /></button>
+                        <button className="del-btn" onClick={() => deleteEmployee(e._id)}><Trash2 size={16} /></button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -480,7 +486,7 @@ const KusumAdmin = ({ onLogout }) => {
         <div className="grid-card full-card">
           <div className="table-responsive">
             <table className="modern-table">
-              <thead><tr><th>Employee</th><th>Date</th><th>Punch In</th><th>Punch Out</th><th>Location</th><th>Status</th></tr></thead>
+              <thead><tr><th>Employee</th><th>Date</th><th>Punch In</th><th>Punch Out</th><th>Status</th></tr></thead>
               <tbody>
                 {displayLogs.map((item, i) => {
                   const { emp, record, date } = item;
@@ -511,7 +517,6 @@ const KusumAdmin = ({ onLogout }) => {
                       <td style={{fontWeight: '600', color: '#64748B'}}>{date}</td>
                       <td className="t-time">{inPunch?.time || '---'}</td>
                       <td className="t-time">{outPunch?.time || '---'}</td>
-                      <td className="t-loc">{inPunch?.location?.address?.split(',')[0] || '---'}</td>
                       <td><span className={`status-pill ${statusClass}`}>{status}</span></td>
                     </tr>
                   );
@@ -577,7 +582,7 @@ const KusumAdmin = ({ onLogout }) => {
             <div key={v._id} className="visit-card-premium">
               <div className="visit-img-wrap">
                 <img 
-                  src={v.imageUrl || 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=600'} 
+                  src={v.imageUrl ? (v.imageUrl.startsWith('/uploads') ? `http://localhost:5000${v.imageUrl}` : v.imageUrl) : 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=600'} 
                   alt="Field" 
                   onError={(e) => {
                     e.target.src = 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=600';
@@ -903,6 +908,7 @@ const KusumAdmin = ({ onLogout }) => {
             { id: 'Overview', icon: <LayoutDashboard size={18} /> },
             { id: 'Employees', icon: <Users size={18} /> },
             { id: 'Attendance', icon: <Clock size={18} /> },
+            { id: 'Live Tracking', icon: <MapPinned size={18} /> },
             { id: 'Site Visits', icon: <MapPin size={18} /> },
             { id: 'Leaves', icon: <CalendarCheck size={18} /> },
             { id: 'Payroll', icon: <CreditCard size={18} /> },
@@ -921,7 +927,7 @@ const KusumAdmin = ({ onLogout }) => {
 
       <main className="main-content">
         <header className="main-header">
-          <div className="search-bar"><Search size={18} color="#94A3B8" /><input type="text" placeholder="Search anything..." /></div>
+          <div className="search-bar"><Search size={18} color="#94A3B8" /><input type="text" placeholder="Search employees, locations..." /></div>
           <div className="header-actions">
             <div className="time-display"><Clock size={16} /><span>{currentTime.toLocaleTimeString()}</span></div>
             <button className="icon-btn notification" onClick={() => setActiveTab('Leaves')}>
@@ -945,6 +951,7 @@ const KusumAdmin = ({ onLogout }) => {
           {activeTab === 'Overview' && renderOverview()}
           {activeTab === 'Employees' && renderEmployees()}
           {activeTab === 'Attendance' && renderAttendance()}
+          {activeTab === 'Live Tracking' && <LiveTracking />}
           {activeTab === 'Site Visits' && renderVisits()}
           {activeTab === 'Leaves' && renderLeaves()}
           {activeTab === 'Payroll' && renderPayroll()}
@@ -954,32 +961,68 @@ const KusumAdmin = ({ onLogout }) => {
         {/* Dynamic Modal */}
         {showModal && selectedEmp && (
           <div className="modal-overlay animate-fade">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h3>{modalType === 'view' ? 'Employee Details' : modalType === 'edit' ? 'Edit Employee' : 'Add New Employee'}</h3>
-                <button className="close-btn" onClick={() => setShowModal(false)}><XCircle size={20} /></button>
+            <div className="modal-content premium-modal">
+              <div className="modal-header-premium">
+                <h3 className="modal-title-green">{modalType === 'view' ? 'Employee Details' : modalType === 'edit' ? 'Edit Employee' : 'Add New Employee'}</h3>
+                <button className="close-btn-ghost" onClick={() => setShowModal(false)}><XCircle size={24} /></button>
               </div>
-              <div className="modal-body">
+              <div className="modal-body-premium">
                 {modalType !== 'add' && (
-                  <div className="modal-profile">
-                    <div className="modal-avatar">{selectedEmp.name ? selectedEmp.name.charAt(0) : 'E'}</div>
-                    <div className="modal-info">
-                      <h4>{selectedEmp.name || 'New Hire'}</h4>
-                      <p>{selectedEmp.role || 'Assign Role'}</p>
+                  <div className="profile-header-card">
+                    <div className="profile-avatar-box">
+                      {selectedEmp.profileImage ? (
+                        <img src={selectedEmp.profileImage.startsWith('http') ? selectedEmp.profileImage : `http://localhost:5000${selectedEmp.profileImage}`} alt="profile" className="profile-img-large" />
+                      ) : (
+                        <div className="profile-initials-large">{selectedEmp.name ? selectedEmp.name.charAt(0) : 'E'}</div>
+                      )}
+                    </div>
+                    <div className="profile-meta-box">
+                      <h4 className="profile-name-main">{selectedEmp.name || 'New Hire'}</h4>
+                      <p className="profile-role-sub">{selectedEmp.designation || selectedEmp.role || 'Employee'}</p>
                     </div>
                   </div>
                 )}
-                <div className="modal-fields">
-                  <div className="m-field"><label>Full Name</label><input readOnly={modalType === 'view'} defaultValue={selectedEmp.name} placeholder="e.g. Amit Sharma" /></div>
-                  <div className="m-field"><label>Email Address</label><input readOnly={modalType === 'view'} defaultValue={selectedEmp.email} placeholder="email@kusum.com" /></div>
-                  <div className="m-field"><label>Phone Number</label><input readOnly={modalType === 'view'} defaultValue={selectedEmp.phone} placeholder="9876543210" /></div>
-                  <div className="m-field"><label>Base Salary (₹)</label><input readOnly={modalType === 'view'} defaultValue={selectedEmp.salary} placeholder="25000" /></div>
-                  <div className="m-field"><label>Work Role</label><input readOnly={modalType === 'view'} defaultValue={selectedEmp.role} placeholder="Field Officer" /></div>
+                
+                <div className="premium-fields-grid">
+                  <div className="premium-field full-width">
+                    <label>Full Name</label>
+                    <div className="premium-input-box">
+                      <input readOnly={modalType === 'view'} defaultValue={selectedEmp.name} placeholder="Rahul Singh" />
+                    </div>
+                  </div>
+                  <div className="premium-field">
+                    <label>Email Address</label>
+                    <div className="premium-input-box">
+                      <input readOnly={modalType === 'view'} defaultValue={selectedEmp.email} placeholder="rahul@kusum.com" />
+                    </div>
+                  </div>
+                  <div className="premium-field">
+                    <label>Phone Number</label>
+                    <div className="premium-input-box">
+                      <input readOnly={modalType === 'view'} defaultValue={selectedEmp.phone} placeholder="9876543203" />
+                    </div>
+                  </div>
+                  <div className="premium-field">
+                    <label>Base Salary (₹)</label>
+                    <div className="premium-input-box">
+                      <input readOnly={modalType === 'view'} defaultValue={selectedEmp.salary} placeholder="35000" />
+                    </div>
+                  </div>
+                  <div className="premium-field">
+                    <label>Work Role</label>
+                    <div className="premium-input-box">
+                      <input readOnly={modalType === 'view'} defaultValue={selectedEmp.designation || selectedEmp.role} placeholder="Employee" />
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div className="modal-footer">
-                <button className="btn-cancel" onClick={() => setShowModal(false)}>Cancel</button>
-                {modalType !== 'view' && <button className="btn-save" onClick={() => { alert(modalType === 'add' ? 'Added Successfully!' : 'Saved Successfully!'); setShowModal(false); }}>{modalType === 'add' ? 'Create Employee' : 'Save Changes'}</button>}
+              <div className="modal-footer-premium">
+                <button className="btn-cancel-ghost" onClick={() => setShowModal(false)}>Cancel</button>
+                {modalType !== 'view' && (
+                  <button className="btn-save-premium" onClick={() => { alert(modalType === 'add' ? 'Added Successfully!' : 'Saved Successfully!'); setShowModal(false); }}>
+                    {modalType === 'add' ? 'Create Employee' : 'Save Changes'}
+                  </button>
+                )}
               </div>
             </div>
           </div>

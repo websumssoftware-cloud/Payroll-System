@@ -4,6 +4,9 @@ const Visit = require('../models/Visit');
 const VisitLog = require('../models/VisitLog');
 const mongoose = require('mongoose');
 
+const fs = require('fs');
+const path = require('path');
+
 // Log a new visit (Initial Site Record)
 router.post('/log', async (req, res) => {
   try {
@@ -17,12 +20,31 @@ router.post('/log', async (req, res) => {
       return res.status(400).json({ message: `Invalid Employee ID format: ${employeeId}` });
     }
 
+    let savedImageUrl = "";
+
+    // Handle Base64 Image Upload
+    if (imageUrl && imageUrl.startsWith('data:image')) {
+        const uploadDir = path.join(__dirname, '../uploads');
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+        }
+
+        const base64Data = imageUrl.replace(/^data:image\/\w+;base64,/, "");
+        const fileName = `visit_${Date.now()}.jpg`;
+        const filePath = path.join(uploadDir, fileName);
+
+        fs.writeFileSync(filePath, base64Data, 'base64');
+        savedImageUrl = `/uploads/${fileName}`; // Store relative path
+    } else {
+        savedImageUrl = imageUrl; // Fallback to existing URL or empty
+    }
+
     const newVisit = new Visit({
       employeeId,
       clientName,
       purpose,
       location: location || { lat: 18.52, lng: 73.85, address: 'Field Location' },
-      imageUrl: imageUrl || ""
+      imageUrl: savedImageUrl
     });
 
     await newVisit.save();
@@ -86,6 +108,35 @@ router.get('/employee/:employeeId', async (req, res) => {
     res.json(visits);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching visits', error: error.message });
+  }
+});
+
+// Get Live Locations of all active employees
+router.get('/live', async (req, res) => {
+  try {
+    // Get visits from today
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const activeVisits = await Visit.find({ timestamp: { $gte: today } })
+      .populate('employeeId', 'name designation');
+
+    const liveData = await Promise.all(activeVisits.map(async (visit) => {
+      const logs = await VisitLog.find({ 
+        employee: visit.employeeId._id,
+        timestamp: { $gte: visit.timestamp }
+      }).sort({ timestamp: 1 }); // Oldest to newest for path drawing
+
+      return {
+        visit,
+        employee: visit.employeeId,
+        history: logs
+      };
+    }));
+
+    res.json(liveData);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching live data', error: error.message });
   }
 });
 
