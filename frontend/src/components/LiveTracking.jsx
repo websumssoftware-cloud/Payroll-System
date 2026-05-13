@@ -16,7 +16,7 @@ let DefaultIcon = L.icon({
 });
 L.Marker.prototype.options.icon = DefaultIcon;
 
-const API_URL = 'http://localhost:5000/api';
+import { API_URL } from '../config';
 
 const MapController = ({ selectedEmployee }) => {
     const map = useMap();

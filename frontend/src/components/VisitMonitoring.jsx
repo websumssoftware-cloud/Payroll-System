@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_URL } from '../config';
 import axios from 'axios';
 import { MapPin, Search, Calendar, User, Clock, ExternalLink } from 'lucide-react';
 
@@ -12,7 +13,7 @@ const VisitMonitoring = () => {
 
     const fetchLogs = async () => {
         try {
-            const res = await axios.get('https://payroll-system-abxy.onrender.com/api/visits/all', {
+            const res = await axios.get(`${API_URL}/visits/all`, {
                 headers: { 'x-auth-token': localStorage.getItem('token') }
             });
             setLogs(res.data);

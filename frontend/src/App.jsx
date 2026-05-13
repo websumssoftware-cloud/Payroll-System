@@ -10,7 +10,7 @@ import axios from 'axios';
 import './App.css';
 import LiveTracking from './components/LiveTracking';
 
-const API_URL = 'http://localhost:5000/api';
+import { API_URL, BASE_URL } from './config';
 
 const KusumAdmin = ({ onLogout }) => {
   const [activeTab, setActiveTab] = useState('Overview');
@@ -196,64 +196,70 @@ const KusumAdmin = ({ onLogout }) => {
   // Render Functions for each Tab
   const renderOverview = () => (
     <div className="tab-view animate-fade">
-      <div className="stats-grid">
+      <div className="stats-grid-modern">
         {[
-          { title: 'Total Employees', value: employees.length, trend: '+8 this month', icon: <Users />, color: '#3B82F6', bg: '#FFFFFF' },
-          { title: 'Currently In', value: attendance.filter(a => a.status === 'Checked In').length, trend: 'Live Status', icon: <Clock />, color: '#10B981', bg: '#FFFFFF' },
-          { title: 'Pending Leaves', value: leaves.filter(l => l.status === 'Pending').length, trend: 'Action Needed', icon: <CalendarCheck />, color: '#F59E0B', bg: '#FFFFFF' },
-          { title: 'Field Visits Today', value: visits.length, trend: 'Live Tracking', icon: <MapPin />, color: '#8B5CF6', bg: '#FFFFFF' },
+          { title: 'Total Employees', value: employees.length, trend: '+8 this month', icon: <Users size={20} />, color: '#3B82F6', bg: '#EFF6FF' },
+          { title: 'Currently In', value: attendance.filter(a => a.status === 'Checked In').length, trend: 'Live Status', icon: <UserCheck size={20} />, color: '#10B981', bg: '#ECFDF5' },
+          { title: 'Pending Leaves', value: leaves.filter(l => l.status === 'Pending').length, trend: 'Action Needed', icon: <ClipboardList size={20} />, color: '#F59E0B', bg: '#FFFBEB' },
+          { title: 'Field Visits', value: visits.length, trend: 'Today\'s Activity', icon: <MapPinned size={20} />, color: '#8B5CF6', bg: '#F5F3FF' },
         ].map((s, i) => (
-          <div key={i} className={`stat-card-custom ${s.title === 'Pending Leaves' && s.value > 0 ? 'pulse-alert' : ''}`} style={{ backgroundColor: s.bg }}>
-            <div className="stat-row-top">
-              <span className="stat-value-huge">{s.value < 10 ? `0${s.value}` : s.value}</span>
+          <div key={i} className="stat-card-horizontal">
+            <div className="stat-icon-wrapper" style={{ backgroundColor: s.bg, color: s.color }}>
+              {s.icon}
             </div>
-            <div className="stat-row-middle">
-              <div className="stat-icon-mini" style={{ color: s.color, backgroundColor: `${s.color}15` }}>{s.icon}</div>
-              <h3 className="stat-title-mini">{s.title}</h3>
-            </div>
-            <div className="stat-row-bottom">
-              <span className="stat-trend-mini" style={{ color: s.color }}>{s.trend}</span>
+            <div className="stat-content">
+              <span className="stat-label-modern">{s.title}</span>
+              <div className="stat-value-wrap">
+                <h3 className="stat-value-modern">{s.value < 10 ? `0${s.value}` : s.value}</h3>
+                <span className="stat-trend-chip" style={{ color: s.color, backgroundColor: `${s.color}15` }}>{s.trend}</span>
+              </div>
             </div>
           </div>
         ))}
       </div>
 
-      <div className="dashboard-grid">
-        <div className="grid-card attendance-card">
-          <div className="card-header"><h3>Live Attendance Feed</h3><button className="text-btn">View All <ChevronRight size={14} /></button></div>
+      <div className="dashboard-layout">
+        <div className="grid-card main-feed">
+          <div className="card-header">
+            <div>
+              <h3>Live Attendance Feed</h3>
+              <p className="card-subtitle">Real-time tracking of employee presence</p>
+            </div>
+            <button className="view-all-btn" onClick={() => setActiveTab('Attendance')}>View Full Logs <ChevronRight size={14} /></button>
+          </div>
           <div className="table-responsive">
-            <table>
+            <table className="modern-table compact">
               <thead><tr><th>Employee</th><th>Time</th><th>Location</th><th>Status</th></tr></thead>
               <tbody>
-                {employees.slice(0, 7).map((emp, i) => {
+                {employees.slice(0, 6).map((emp, i) => {
                   const record = attendance.find(a => (a.employee?._id === emp._id || a.employee === emp._id));
                   const leave = leaves.find(l => (l.employeeId?._id === emp._id || l.employeeId === emp._id) && l.status === 'Approved');
                   const inPunch = record?.punches?.find(p => p.type === 'In');
                   
                   let status = 'ABSENT';
-                  let statusClass = 'late';
+                  let statusClass = 'absent';
                   if (record) {
                     status = 'PRESENT';
-                    statusClass = 'in';
+                    statusClass = 'present';
                   } else if (leave) {
                     status = 'ON LEAVE';
-                    statusClass = 'pending';
+                    statusClass = 'leave';
                   }
 
                   return (
                     <tr key={i}>
                       <td>
-                        <div className="user-info">
-                          <div className="u-avatar">{emp.name.charAt(0)}</div>
+                        <div className="user-info-s">
+                          <div className="u-avatar-s" style={{ backgroundColor: statusClass === 'present' ? '#10B981' : '#CBD5E1' }}>{emp.name.charAt(0)}</div>
                           <div>
-                            <div className="u-name">{emp.name}</div>
-                            <div className="u-role">{emp.designation}</div>
+                            <div className="u-name-s">{emp.name}</div>
+                            <div className="u-role-s">{emp.designation || 'Staff'}</div>
                           </div>
                         </div>
                       </td>
-                      <td className="t-time">{inPunch?.time || '---'}</td>
-                      <td className="t-loc">{inPunch?.location?.address || '---'}</td>
-                      <td><span className={`status-pill ${statusClass}`}>{status}</span></td>
+                      <td className="t-time-s">{inPunch?.time || '--:--'}</td>
+                      <td className="t-loc-s">{inPunch?.location?.address || '---'}</td>
+                      <td><span className={`status-tag ${statusClass}`}>{status}</span></td>
                     </tr>
                   );
                 })}
@@ -262,22 +268,33 @@ const KusumAdmin = ({ onLogout }) => {
           </div>
         </div>
 
-        <div className="grid-card action-card">
-          <div className="card-header"><h3>Leave Approvals</h3><span className="count-badge">{leaves.length} New</span></div>
-          <div className="action-list">
-            {leaves.filter(l => l.status === 'Pending').map((l, i) => (
-              <div key={i} className="action-item">
-                <div className="action-icon pending"><AlertCircle size={18} /></div>
-                <div className="action-body">
-                  <p className="action-title">{l.employeeId?.name || 'Staff'} - Leave Request</p>
-                  <p className="action-meta">{l.reason} | {new Date(l.fromDate).toLocaleDateString()} to {new Date(l.toDate).toLocaleDateString()}</p>
-                  <div className="action-btns">
-                    <button className="btn-approve" onClick={() => handleLeaveAction(l._id, 'Approved')}>Approve</button>
-                    <button className="btn-reject" onClick={() => handleLeaveAction(l._id, 'Rejected')}>Reject</button>
+        <div className="grid-card side-feed">
+          <div className="card-header">
+            <h3>Recent Requests</h3>
+            <span className="notif-badge">{leaves.filter(l => l.status === 'Pending').length}</span>
+          </div>
+          <div className="activity-list">
+            {leaves.filter(l => l.status === 'Pending').length > 0 ? leaves.filter(l => l.status === 'Pending').slice(0, 4).map((l, i) => (
+              <div key={i} className="activity-item-premium">
+                <div className="activity-icon"><CalendarCheck size={16} /></div>
+                <div className="activity-details">
+                  <div className="activity-top">
+                    <span className="activity-user">{l.employeeId?.name || 'Staff'}</span>
+                    <span className="activity-time">{l.leaveType}</span>
+                  </div>
+                  <p className="activity-desc">{l.reason}</p>
+                  <div className="activity-actions">
+                    <button className="act-btn approve" onClick={() => handleLeaveAction(l._id, 'Approved')}>Approve</button>
+                    <button className="act-btn reject" onClick={() => handleLeaveAction(l._id, 'Rejected')}>Reject</button>
                   </div>
                 </div>
               </div>
-            ))}
+            )) : (
+              <div className="empty-state-s">
+                <CheckCircle2 size={32} color="#10B981" />
+                <p>All caught up!</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -582,7 +599,7 @@ const KusumAdmin = ({ onLogout }) => {
             <div key={v._id} className="visit-card-premium">
               <div className="visit-img-wrap">
                 <img 
-                  src={v.imageUrl ? (v.imageUrl.startsWith('/uploads') ? `http://localhost:5000${v.imageUrl}` : v.imageUrl) : 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=600'} 
+                  src={v.imageUrl ? (v.imageUrl.startsWith('/uploads') ? `${BASE_URL}${v.imageUrl}` : v.imageUrl) : 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=600'} 
                   alt="Field" 
                   onError={(e) => {
                     e.target.src = 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=600';
@@ -971,7 +988,7 @@ const KusumAdmin = ({ onLogout }) => {
                   <div className="profile-header-card">
                     <div className="profile-avatar-box">
                       {selectedEmp.profileImage ? (
-                        <img src={selectedEmp.profileImage.startsWith('http') ? selectedEmp.profileImage : `http://localhost:5000${selectedEmp.profileImage}`} alt="profile" className="profile-img-large" />
+                        <img src={selectedEmp.profileImage.startsWith('http') ? selectedEmp.profileImage : `${BASE_URL}${selectedEmp.profileImage}`} alt="profile" className="profile-img-large" />
                       ) : (
                         <div className="profile-initials-large">{selectedEmp.name ? selectedEmp.name.charAt(0) : 'E'}</div>
                       )}

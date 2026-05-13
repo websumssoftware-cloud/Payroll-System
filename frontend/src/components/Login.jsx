@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { LogIn, Mail, Lock, Shield } from 'lucide-react';
+import { Shield, LogIn } from 'lucide-react';
+import { API_URL } from '../config';
 
 const Login = ({ setAuth }) => {
     const [formData, setFormData] = useState({ email: '', password: '' });
@@ -12,7 +13,7 @@ const Login = ({ setAuth }) => {
         setError('');
         setLoading(true);
         try {
-            const res = await axios.post('https://payroll-system-abxy.onrender.com/api/auth/login', formData);
+            const res = await axios.post(`${API_URL}/auth/login`, formData);
             localStorage.setItem('token', res.data.token);
             localStorage.setItem('user', JSON.stringify(res.data.user));
             setAuth(res.data.user);

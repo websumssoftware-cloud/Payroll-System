@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { API_URL } from '../config';
 import axios from 'axios';
 import { User, Mail, Phone, MapPin, Shield, CheckCircle } from 'lucide-react';
 
@@ -14,7 +15,7 @@ const Profile = ({ user }) => {
     const handleUpdate = async (e) => {
         e.preventDefault();
         try {
-            await axios.put(`https://payroll-system-abxy.onrender.com/api/employees/${user.id}`, formData, {
+            await axios.put(`${API_URL}/employees/${user.id}`, formData, {
                 headers: { 'x-auth-token': localStorage.getItem('token') }
             });
             setSuccess(true);

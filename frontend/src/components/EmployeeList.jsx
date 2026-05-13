@@ -11,6 +11,7 @@ import {
     Filter,
     Download
 } from 'lucide-react';
+import { API_URL } from '../config';
 
 const EmployeeList = () => {
     const [employees, setEmployees] = useState([]);
@@ -22,7 +23,7 @@ const EmployeeList = () => {
 
     const fetchEmployees = async () => {
         try {
-            const res = await axios.get('https://payroll-system-abxy.onrender.com/api/employees', {
+            const res = await axios.get(`${API_URL}/employees`, {
                 headers: { 'x-auth-token': localStorage.getItem('token') }
             });
             setEmployees(res.data);

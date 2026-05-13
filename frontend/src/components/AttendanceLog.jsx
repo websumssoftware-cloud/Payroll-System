@@ -10,6 +10,7 @@ import {
     ArrowUpRight,
     ArrowDownRight
 } from 'lucide-react';
+import { API_URL } from '../config';
 
 const AttendanceLog = () => {
     const [logs, setLogs] = useState([]);
@@ -21,7 +22,7 @@ const AttendanceLog = () => {
 
     const fetchLogs = async () => {
         try {
-            const res = await axios.get('https://payroll-system-abxy.onrender.com/api/attendance/summary', {
+            const res = await axios.get(`${API_URL}/attendance/summary`, {
                 headers: { 'x-auth-token': localStorage.getItem('token') }
             });
             setLogs(res.data.attendance);

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_URL } from '../config';
 import axios from 'axios';
 import { CreditCard, Download, Printer, Calculator, Filter, Search } from 'lucide-react';
 
@@ -14,7 +15,7 @@ const SalaryManagement = () => {
 
     const fetchRecords = async () => {
         try {
-            const res = await axios.get('https://payroll-system-abxy.onrender.com/api/salary/all', {
+            const res = await axios.get(`${API_URL}/salary/all`, {
                 headers: { 'x-auth-token': localStorage.getItem('token') }
             });
             setRecords(res.data);
@@ -29,7 +30,7 @@ const SalaryManagement = () => {
         e.preventDefault();
         try {
             // Fetch all employees first
-            const empRes = await axios.get('https://payroll-system-abxy.onrender.com/api/employees', {
+            const empRes = await axios.get(`${API_URL}/employees`, {
                 headers: { 'x-auth-token': localStorage.getItem('token') }
             });
             
@@ -37,7 +38,7 @@ const SalaryManagement = () => {
             // In a real app, this would be a single bulk endpoint
             for (const emp of empRes.data) {
                 if (emp.role === 'Employee') {
-                    await axios.post('https://payroll-system-abxy.onrender.com/api/salary/calculate', {
+                    await axios.post(`${API_URL}/salary/calculate`, {
                         employeeId: emp._id,
                         ...runData
                     }, {

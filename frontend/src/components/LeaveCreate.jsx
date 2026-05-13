@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_URL } from '../config';
 import axios from 'axios';
 import { Calendar, Plus, Clock, CheckCircle, XCircle } from 'lucide-react';
 
@@ -14,7 +15,7 @@ const LeaveManagement = ({ admin }) => {
     const fetchLeaves = async () => {
         try {
             const endpoint = admin ? '/api/leaves/all' : '/api/leaves/my';
-            const res = await axios.get(`https://payroll-system-abxy.onrender.com${endpoint}`, {
+            const res = await axios.get(`${API_URL}${endpoint}`, {
                 headers: { 'x-auth-token': localStorage.getItem('token') }
             });
             setLeaves(res.data);
@@ -26,7 +27,7 @@ const LeaveManagement = ({ admin }) => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            await axios.post('https://payroll-system-abxy.onrender.com/api/leaves/apply', formData, {
+            await axios.post(`${API_URL}/leaves/apply`, formData, {
                 headers: { 'x-auth-token': localStorage.getItem('token') }
             });
             setShowForm(false);
@@ -38,7 +39,7 @@ const LeaveManagement = ({ admin }) => {
 
     const updateStatus = async (id, status) => {
         try {
-            await axios.put(`https://payroll-system-abxy.onrender.com/api/leaves/status/${id}`, { status }, {
+            await axios.put(`${API_URL}/leaves/status/${id}`, { status }, {
                 headers: { 'x-auth-token': localStorage.getItem('token') }
             });
             fetchLeaves();
