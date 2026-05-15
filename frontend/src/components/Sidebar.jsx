@@ -10,6 +10,7 @@ import {
     LogOut,
     Shield
 } from 'lucide-react';
+import logo from '../assets/kusum-brand-logo-v2.png'
 
 const Sidebar = ({ user, handleLogout }) => {
     const role = user?.role || 'Employee';
@@ -30,11 +31,14 @@ const Sidebar = ({ user, handleLogout }) => {
 
     return (
         <div className="sidebar">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '2.5rem', padding: '0 10px' }}>
-                <div style={{ width: '40px', height: '40px', background: 'var(--primary)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
-                    <Shield size={24} />
+            <div className="brand-box">
+                <div className="brand-logo-premium">
+                    <img src={logo} alt="Kusum Farm" className="sidebar-logo-img" />
                 </div>
-                <span style={{ fontSize: '1.25rem', fontWeight: '800', letterSpacing: '-0.5px' }}>ETS PRO</span>
+                <div className="brand-info">
+                    <h1 className="brand-name">KUSUM FARM</h1>
+                    <p className="brand-tag">Admin Portal</p>
+                </div>
             </div>
 
             <div style={{ flex: 1 }}>

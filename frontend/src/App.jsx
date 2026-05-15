@@ -9,11 +9,12 @@ import {
 import axios from 'axios';
 import './App.css';
 import LiveTracking from './components/LiveTracking';
+import logo from './assets/kusum-brand-logo-v2.png';
 
 import { API_URL, BASE_URL } from './config';
 
 const KusumAdmin = ({ onLogout }) => {
-  const [activeTab, setActiveTab] = useState('Overview');
+  const [activeTab, setActiveTab] = useState('Dashboard');
   const [currentTime, setCurrentTime] = useState(new Date());
   const [employees, setEmployees] = useState([]);
   const [attendance, setAttendance] = useState([]);
@@ -270,7 +271,7 @@ const KusumAdmin = ({ onLogout }) => {
 
         <div className="grid-card side-feed">
           <div className="card-header">
-            <h3>Recent Requests</h3>
+            <h3>Leave Requests</h3>
             <span className="notif-badge">{leaves.filter(l => l.status === 'Pending').length}</span>
           </div>
           <div className="activity-list">
@@ -467,35 +468,35 @@ const KusumAdmin = ({ onLogout }) => {
           </div>
         </div>
 
-        <div className="stats-grid">
+        <div className="stats-grid-modern">
           {[
             { 
-              title: 'Present', 
+              title: 'Present Today', 
               value: filteredAttendance.filter(a => a.status === 'Checked In').length, 
               trend: attendanceView === 'Daily' ? `${((filteredAttendance.filter(a => a.status === 'Checked In').length / (employees.length || 1)) * 100).toFixed(0)}% Rate` : 'Total Present', 
-              icon: <CheckCircle2 />, color: '#10B981', bg: '#F0FDF4' 
+              icon: <CheckCircle2 size={20} />, color: '#10B981', bg: '#ECFDF5' 
             },
             { 
               title: 'Late Arrivals', 
               value: filteredAttendance.filter(a => a.late).length, 
-              trend: 'Check Logs', icon: <Clock />, color: '#F59E0B', bg: '#FFFFFF' 
+              trend: 'Check Logs', icon: <Clock size={20} />, color: '#F59E0B', bg: '#FFFBEB' 
             },
             { 
-              title: 'Absent', 
+              title: 'Absent / Leave', 
               value: attendanceView === 'Daily' ? Math.max(0, employees.length - filteredAttendance.filter(a => a.status === 'Checked In').length) : filteredAttendance.filter(a => a.status === 'Absent').length, 
-              trend: 'Records', icon: <XCircle />, color: '#EF4444', bg: '#FFFFFF' 
+              trend: 'Records', icon: <XCircle size={20} />, color: '#EF4444', bg: '#FEF2F2' 
             },
           ].map((s, i) => (
-            <div key={i} className="stat-card-custom" style={{ backgroundColor: s.bg }}>
-              <div className="stat-row-top">
-                <span className="stat-value-huge">{s.value < 10 ? `0${s.value}` : s.value}</span>
+            <div key={i} className="stat-card-horizontal">
+              <div className="stat-icon-wrapper" style={{ backgroundColor: s.bg, color: s.color }}>
+                {s.icon}
               </div>
-              <div className="stat-row-middle">
-                <div className="stat-icon-mini" style={{ color: s.color, backgroundColor: `${s.color}15` }}>{s.icon}</div>
-                <h3 className="stat-title-mini">{s.title}</h3>
-              </div>
-              <div className="stat-row-bottom">
-                <span className="stat-trend-mini" style={{ color: s.color }}>{s.trend}</span>
+              <div className="stat-content">
+                <span className="stat-label-modern">{s.title}</span>
+                <div className="stat-value-wrap">
+                  <h3 className="stat-value-modern">{s.value < 10 ? `0${s.value}` : s.value}</h3>
+                  <span className="stat-trend-chip" style={{ color: s.color, backgroundColor: `${s.color}15` }}>{s.trend}</span>
+                </div>
               </div>
             </div>
           ))}
@@ -698,23 +699,32 @@ const KusumAdmin = ({ onLogout }) => {
           </div>
         </div>
 
-        <div className="stats-grid">
-          <div className="stat-card-custom" style={{ backgroundColor: '#FFFFFF' }}>
-            <div className="stat-row-top"><span className="stat-value-huge">{filteredLeaves.filter(l => l.status === 'Pending').length}</span></div>
-            <div className="stat-row-middle">
-              <div className="stat-icon-mini" style={{ color: '#F59E0B', backgroundColor: 'rgba(245, 158, 11, 0.15)' }}><FileClock size={16} /></div>
-              <h3 className="stat-title-mini">Pending ({leaveFilterView})</h3>
+        <div className="stats-grid-modern">
+          {[
+            { 
+              title: 'Pending Requests', 
+              value: filteredLeaves.filter(l => l.status === 'Pending').length, 
+              trend: 'Action Needed', icon: <FileClock size={20} />, color: '#F59E0B', bg: '#FFFBEB' 
+            },
+            { 
+              title: 'Approved Leaves', 
+              value: filteredLeaves.filter(l => l.status === 'Approved').length, 
+              trend: 'Total History', icon: <FileCheck size={20} />, color: '#10B981', bg: '#ECFDF5' 
+            },
+          ].map((s, i) => (
+            <div key={i} className="stat-card-horizontal">
+              <div className="stat-icon-wrapper" style={{ backgroundColor: s.bg, color: s.color }}>
+                {s.icon}
+              </div>
+              <div className="stat-content">
+                <span className="stat-label-modern">{s.title}</span>
+                <div className="stat-value-wrap">
+                  <h3 className="stat-value-modern">{s.value < 10 ? `0${s.value}` : s.value}</h3>
+                  <span className="stat-trend-chip" style={{ color: s.color, backgroundColor: `${s.color}15` }}>{s.trend}</span>
+                </div>
+              </div>
             </div>
-            <div className="stat-row-bottom"><span className="stat-trend-mini" style={{ color: '#F59E0B' }}>Action Needed</span></div>
-          </div>
-          <div className="stat-card-custom" style={{ backgroundColor: '#FFFFFF' }}>
-            <div className="stat-row-top"><span className="stat-value-huge">{filteredLeaves.filter(l => l.status === 'Approved').length}</span></div>
-            <div className="stat-row-middle">
-              <div className="stat-icon-mini" style={{ color: '#10B981', backgroundColor: 'rgba(16, 185, 129, 0.15)' }}><FileCheck size={16} /></div>
-              <h3 className="stat-title-mini">Approved</h3>
-            </div>
-            <div className="stat-row-bottom"><span className="stat-trend-mini" style={{ color: '#10B981' }}>Total Approvals</span></div>
-          </div>
+          ))}
         </div>
         <div className="grid-card full-card">
           <div className="table-responsive">
@@ -762,35 +772,37 @@ const KusumAdmin = ({ onLogout }) => {
 
   const renderReports = () => (
     <div className="tab-view animate-fade">
-      <div className="stats-grid">
-        <div className="stat-card-custom" style={{ backgroundColor: '#FFFFFF' }}>
-          <div className="stat-row-top">
-            <span className="stat-value-huge">
-              {((attendance.filter(a => a.status === 'Checked In').length / (employees.length || 1)) * 100).toFixed(0)}%
-            </span>
+      <div className="stats-grid-modern">
+        {[
+          { 
+            title: 'Avg. Attendance', 
+            value: `${((attendance.filter(a => a.status === 'Checked In').length / (employees.length || 1)) * 100).toFixed(0)}%`, 
+            trend: 'Current Month', icon: <UserCheck size={20} />, color: '#10B981', bg: '#ECFDF5' 
+          },
+          { 
+            title: 'Total Site Visits', 
+            value: visits.length, 
+            trend: 'Monthly Progress', icon: <MapPin size={20} />, color: '#8B5CF6', bg: '#F5F3FF' 
+          },
+          { 
+            title: 'Pending Approvals', 
+            value: leaves.filter(l => l.status === 'Pending').length, 
+            trend: 'Action Required', icon: <ClipboardList size={20} />, color: '#F59E0B', bg: '#FFFBEB' 
+          },
+        ].map((s, i) => (
+          <div key={i} className="stat-card-horizontal">
+            <div className="stat-icon-wrapper" style={{ backgroundColor: s.bg, color: s.color }}>
+              {s.icon}
+            </div>
+            <div className="stat-content">
+              <span className="stat-label-modern">{s.title}</span>
+              <div className="stat-value-wrap">
+                <h3 className="stat-value-modern">{s.value}</h3>
+                <span className="stat-trend-chip" style={{ color: s.color, backgroundColor: `${s.color}15` }}>{s.trend}</span>
+              </div>
+            </div>
           </div>
-          <div className="stat-row-middle">
-            <div className="stat-icon-mini" style={{ color: '#10B981', backgroundColor: 'rgba(16, 185, 129, 0.15)' }}><UserCheck size={16} /></div>
-            <h3 className="stat-title-mini">Avg. Attendance</h3>
-          </div>
-          <div className="stat-row-bottom"><span className="stat-trend-mini" style={{ color: '#10B981' }}>Current Month</span></div>
-        </div>
-        <div className="stat-card-custom" style={{ backgroundColor: '#FFFFFF' }}>
-          <div className="stat-row-top"><span className="stat-value-huge">{visits.length}</span></div>
-          <div className="stat-row-middle">
-            <div className="stat-icon-mini" style={{ color: '#8B5CF6', backgroundColor: 'rgba(139, 92, 246, 0.15)' }}><MapPin size={16} /></div>
-            <h3 className="stat-title-mini">Total Visits</h3>
-          </div>
-          <div className="stat-row-bottom"><span className="stat-trend-mini" style={{ color: '#8B5CF6' }}>Monthly Progress</span></div>
-        </div>
-        <div className="stat-card-custom" style={{ backgroundColor: '#FFFFFF' }}>
-          <div className="stat-row-top"><span className="stat-value-huge">{leaves.filter(l => l.status === 'Pending').length}</span></div>
-          <div className="stat-row-middle">
-            <div className="stat-icon-mini" style={{ color: '#F59E0B', backgroundColor: 'rgba(245, 158, 11, 0.15)' }}><ClipboardList size={16} /></div>
-            <h3 className="stat-title-mini">Pending Tasks</h3>
-          </div>
-          <div className="stat-row-bottom"><span className="stat-trend-mini" style={{ color: '#F59E0B' }}>Action Required</span></div>
-        </div>
+        ))}
       </div>
 
       <div className="grid-card">
@@ -917,12 +929,17 @@ const KusumAdmin = ({ onLogout }) => {
     <div className="admin-container">
       <aside className="sidebar">
         <div className="brand-box">
-          <div className="brand-logo"><Sprout color="#fff" size={24} /></div>
-          <div className="brand-info"><h1 className="brand-name">KUSUM FARM</h1><p className="brand-tag">Admin Portal</p></div>
+          <div className="brand-logo-premium">
+            <img src={logo} alt="Kusum Farm Logo" className="sidebar-logo-img" />
+          </div>
+          <div className="brand-info">
+            <h1 className="brand-name">KUSUM FARM</h1>
+            <p className="brand-tag">Admin Portal</p>
+          </div>
         </div>
         <nav className="side-nav">
           {[
-            { id: 'Overview', icon: <LayoutDashboard size={18} /> },
+            { id: 'Dashboard', icon: <LayoutDashboard size={18} /> },
             { id: 'Employees', icon: <Users size={18} /> },
             { id: 'Attendance', icon: <Clock size={18} /> },
             { id: 'Live Tracking', icon: <MapPinned size={18} /> },
@@ -965,7 +982,7 @@ const KusumAdmin = ({ onLogout }) => {
             <div className="date-chip">{currentTime.toDateString()}</div>
           </div>
 
-          {activeTab === 'Overview' && renderOverview()}
+          {activeTab === 'Dashboard' && renderOverview()}
           {activeTab === 'Employees' && renderEmployees()}
           {activeTab === 'Attendance' && renderAttendance()}
           {activeTab === 'Live Tracking' && <LiveTracking />}
@@ -1075,7 +1092,9 @@ const Login = ({ onLogin }) => {
     <div className="login-container animate-fade">
       <div className="login-card">
         <div className="login-header">
-          <div className="brand-logo large"><Sprout color="#fff" size={32} /></div>
+          <div className="login-brand-logo">
+            <img src={logo} alt="Kusum Farm" className="login-logo-img" />
+          </div>
           <h2>Kusum Farm</h2>
           <p>Sign in to your account</p>
         </div>
