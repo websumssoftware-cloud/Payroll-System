@@ -24,6 +24,7 @@ app.use('/api/attendance', require('./routes/attendanceRoutes'));
 app.use('/api/leaves', require('./routes/leaveRoutes'));
 app.use('/api/visits', require('./routes/visitRoutes'));
 app.use('/api/salary', require('./routes/salaryRoutes'));
+app.use('/api/notifications', require('./routes/notificationRoutes'));
 
 // Basic Route
 app.get('/', (req, res) => {

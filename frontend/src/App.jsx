@@ -2,14 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, Users, MapPin, CalendarCheck, CreditCard, Settings, 
   Bell, Search, Plus, ArrowUpRight, ArrowDownRight, Clock, MoreVertical,
-  LogOut, Sprout, CheckCircle2, XCircle, AlertCircle, FileText, 
+  LogOut, LogIn, Sprout, CheckCircle2, XCircle, AlertCircle, AlertTriangle, FileText, 
   ExternalLink, ChevronRight, Filter, Download, UserPlus, Eye, Mail, Phone, Calendar,
   FileClock, FileCheck, UserCheck, ClipboardList, MapPinned, Edit2, Trash2
 } from 'lucide-react';
+import { 
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
+  BarChart, Bar 
+} from 'recharts';
 import axios from 'axios';
 import './App.css';
 import LiveTracking from './components/LiveTracking';
-import logo from './assets/kusum-brand-logo-v2.png';
+import logo from './assets/kusum_farm_premium.png';
 
 import { API_URL, BASE_URL } from './config';
 
@@ -20,43 +24,53 @@ const KusumAdmin = ({ onLogout }) => {
   const [attendance, setAttendance] = useState([]);
   const [visits, setVisits] = useState([]);
   const [leaves, setLeaves] = useState([]);
+  const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   
   // Modal States
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState('view'); // 'view' or 'edit'
   const [selectedEmp, setSelectedEmp] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
+  const [attendanceDate, setAttendanceDate] = useState(new Date().toLocaleDateString('en-CA'));
   const [attendanceView, setAttendanceView] = useState('Daily'); // 'Daily' or 'Weekly'
-  const [employeeFilterDate, setEmployeeFilterDate] = useState(new Date().toISOString().split('T')[0]);
+  const [employeeFilterDate, setEmployeeFilterDate] = useState(new Date().toLocaleDateString('en-CA'));
   const [employeeFilterView, setEmployeeFilterView] = useState('Weekly');
-  const [visitFilterDate, setVisitFilterDate] = useState(new Date().toISOString().split('T')[0]);
+  const [visitFilterDate, setVisitFilterDate] = useState(new Date().toLocaleDateString('en-CA'));
   const [visitFilterView, setVisitFilterView] = useState('Daily');
-  const [leaveFilterDate, setLeaveFilterDate] = useState(new Date().toISOString().split('T')[0]);
+  const [leaveFilterDate, setLeaveFilterDate] = useState(new Date().toLocaleDateString('en-CA'));
   const [leaveFilterView, setLeaveFilterView] = useState('Weekly');
   const [payrollMonth, setPayrollMonth] = useState(new Date().getMonth());
   const [payrollYear, setPayrollYear] = useState(new Date().getFullYear());
+  const [showPunchLogs, setShowPunchLogs] = useState(false);
+  const [selectedAttendance, setSelectedAttendance] = useState(null);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     fetchAllData();
-    return () => clearInterval(timer);
+    const dataInterval = setInterval(fetchAllData, 30000); // Poll every 30s
+    return () => {
+      clearInterval(timer);
+      clearInterval(dataInterval);
+    };
   }, []);
 
   const fetchAllData = async () => {
     setLoading(true);
     try {
-      const [empRes, attRes, visitRes, leaveRes] = await Promise.all([
+      const [empRes, attRes, visitRes, leaveRes, notifRes] = await Promise.all([
         axios.get(`${API_URL}/employees`),
         axios.get(`${API_URL}/attendance`),
         axios.get(`${API_URL}/visits`),
-        axios.get(`${API_URL}/leaves`)
+        axios.get(`${API_URL}/leaves`),
+        axios.get(`${API_URL}/notifications/all`) // New endpoint for admin to see all
       ]);
       setEmployees(empRes.data || []);
       setAttendance((attRes.data || []).sort((a, b) => new Date(b.date) - new Date(a.date)));
       setVisits((visitRes.data || []).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)));
       setLeaves((leaveRes.data || []).sort((a, b) => new Date(b.fromDate) - new Date(a.fromDate)));
+      setNotifications((notifRes.data || []).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)));
     } catch (err) {
       console.error('API Error:', err);
     } finally {
@@ -195,32 +209,98 @@ const KusumAdmin = ({ onLogout }) => {
   };
 
   // Render Functions for each Tab
-  const renderOverview = () => (
-    <div className="tab-view animate-fade">
-      <div className="stats-grid-modern">
-        {[
-          { title: 'Total Employees', value: employees.length, trend: '+8 this month', icon: <Users size={20} />, color: '#3B82F6', bg: '#EFF6FF' },
-          { title: 'Currently In', value: attendance.filter(a => a.status === 'Checked In').length, trend: 'Live Status', icon: <UserCheck size={20} />, color: '#10B981', bg: '#ECFDF5' },
-          { title: 'Pending Leaves', value: leaves.filter(l => l.status === 'Pending').length, trend: 'Action Needed', icon: <ClipboardList size={20} />, color: '#F59E0B', bg: '#FFFBEB' },
-          { title: 'Field Visits', value: visits.length, trend: 'Today\'s Activity', icon: <MapPinned size={20} />, color: '#8B5CF6', bg: '#F5F3FF' },
-        ].map((s, i) => (
-          <div key={i} className="stat-card-horizontal">
-            <div className="stat-icon-wrapper" style={{ backgroundColor: s.bg, color: s.color }}>
-              {s.icon}
-            </div>
-            <div className="stat-content">
-              <span className="stat-label-modern">{s.title}</span>
-              <div className="stat-value-wrap">
-                <h3 className="stat-value-modern">{s.value < 10 ? `0${s.value}` : s.value}</h3>
-                <span className="stat-trend-chip" style={{ color: s.color, backgroundColor: `${s.color}15` }}>{s.trend}</span>
+  const renderOverview = () => {
+    const lastWeek = new Date();
+    lastWeek.setDate(lastWeek.getDate() - 7);
+    const lastMonth = new Date();
+    lastMonth.setMonth(lastMonth.getMonth() - 1);
+
+    const empWeekly = employees.filter(e => new Date(e.createdAt) >= lastWeek).length;
+    const empMonthly = employees.filter(e => new Date(e.createdAt) >= lastMonth).length;
+
+    const visitsWeekly = visits.filter(v => new Date(v.timestamp) >= lastWeek).length;
+    const visitsMonthly = visits.filter(v => new Date(v.timestamp) >= lastMonth).length;
+
+    const chartData = [...Array(7)].map((_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - (6 - i));
+      const dateStr = d.toISOString().split('T')[0];
+      const count = attendance.filter(a => a.date === dateStr && a.status === 'Checked In').length;
+      return {
+        name: d.toLocaleDateString([], { weekday: 'short' }),
+        present: count
+      };
+    });
+
+    const stats = [
+      { 
+        title: 'Total Employees', 
+        value: employees.length, 
+        icon: <Users size={20} />, 
+        color: '#3B82F6', 
+        bg: '#EFF6FF',
+        trends: []
+      },
+      { 
+        title: 'Currently In', 
+        value: attendance.filter(a => a.status === 'Checked In' && a.date === currentTime.toLocaleDateString('en-CA')).length, 
+        icon: <UserCheck size={20} />, 
+        color: '#10B981', 
+        bg: '#ECFDF5',
+        trends: [
+          { label: 'Live Status', color: '#10B981' },
+          { label: `${attendance.filter(a => a.status === 'Checked In' && a.date === new Date(Date.now() - 86400000).toISOString().split('T')[0]).length} yesterday`, color: '#64748b' }
+        ]
+      },
+      { 
+        title: 'Pending Leaves', 
+        value: leaves.filter(l => l.status === 'Pending').length, 
+        icon: <ClipboardList size={20} />, 
+        color: '#F59E0B', 
+        bg: '#FFFBEB',
+        trends: [
+          { label: 'Action Needed', color: '#F59E0B' },
+          { label: `${leaves.filter(l => l.status === 'Pending' && new Date(l.createdAt) < new Date().setHours(0,0,0,0)).length} carried over`, color: '#64748b' }
+        ]
+      },
+      { 
+        title: 'Field Visits', 
+        value: visits.filter(v => new Date(v.timestamp).toLocaleDateString('en-CA') === currentTime.toLocaleDateString('en-CA')).length, 
+        icon: <MapPinned size={20} />, 
+        color: '#8B5CF6', 
+        bg: '#F5F3FF',
+        trends: []
+      },
+    ];
+
+    return (
+      <div className="tab-view animate-fade">
+        <div className="stats-grid-modern">
+          {stats.map((s, i) => (
+            <div key={i} className="stat-card-horizontal">
+              <div className="stat-icon-wrapper" style={{ backgroundColor: s.bg, color: s.color }}>
+                {s.icon}
+              </div>
+              <div className="stat-content">
+                <span className="stat-label-modern">{s.title}</span>
+                <div className="stat-value-wrap">
+                  <h3 className="stat-value-modern">{s.value < 10 ? `0${s.value}` : s.value}</h3>
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    {s.trends.map((t, idx) => (
+                      <span key={idx} className="stat-trend-chip" style={{ color: t.color, backgroundColor: `${t.color}15`, fontSize: '0.65rem' }}>
+                        {t.label}
+                      </span>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
 
-      <div className="dashboard-layout">
-        <div className="grid-card main-feed">
+      <div className="dashboard-grid">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+          <div className="grid-card main-feed">
           <div className="card-header">
             <div>
               <h3>Live Attendance Feed</h3>
@@ -232,8 +312,16 @@ const KusumAdmin = ({ onLogout }) => {
             <table className="modern-table compact">
               <thead><tr><th>Employee</th><th>Time</th><th>Location</th><th>Status</th></tr></thead>
               <tbody>
-                {employees.slice(0, 6).map((emp, i) => {
-                  const record = attendance.find(a => (a.employee?._id === emp._id || a.employee === emp._id));
+                {employees
+                  .filter(emp => attendance.some(a => 
+                    (a.employee?._id === emp._id || a.employee === emp._id) && 
+                    a.date === currentTime.toLocaleDateString('en-CA')
+                  ))
+                  .slice(0, 6).map((emp, i) => {
+                  const record = attendance.find(a => 
+                    (a.employee?._id === emp._id || a.employee === emp._id) && 
+                    a.date === currentTime.toLocaleDateString('en-CA')
+                  );
                   const leave = leaves.find(l => (l.employeeId?._id === emp._id || l.employeeId === emp._id) && l.status === 'Approved');
                   const inPunch = record?.punches?.find(p => p.type === 'In');
                   
@@ -267,6 +355,57 @@ const KusumAdmin = ({ onLogout }) => {
               </tbody>
             </table>
           </div>
+            </div>
+
+          <div className="grid-card" style={{ padding: '2rem' }}>
+            <div className="card-header" style={{ marginBottom: '1.5rem' }}>
+              <div>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: '800' }}>Attendance Trends</h3>
+                <p className="card-subtitle">Daily presence breakdown for the last 7 days</p>
+              </div>
+            </div>
+            <div style={{ width: '100%', height: 300 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorPresent" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis 
+                    dataKey="name" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fill: '#64748b', fontSize: 12, fontWeight: 500 }} 
+                    dy={10}
+                  />
+                  <YAxis 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fill: '#64748b', fontSize: 12, fontWeight: 500 }}
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      borderRadius: '12px', 
+                      border: 'none', 
+                      boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
+                      padding: '12px'
+                    }} 
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="present" 
+                    stroke="#10b981" 
+                    strokeWidth={3}
+                    fillOpacity={1} 
+                    fill="url(#colorPresent)" 
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
         </div>
 
         <div className="grid-card side-feed">
@@ -285,8 +424,12 @@ const KusumAdmin = ({ onLogout }) => {
                   </div>
                   <p className="activity-desc">{l.reason}</p>
                   <div className="activity-actions">
-                    <button className="act-btn approve" onClick={() => handleLeaveAction(l._id, 'Approved')}>Approve</button>
-                    <button className="act-btn reject" onClick={() => handleLeaveAction(l._id, 'Rejected')}>Reject</button>
+                    <button className="act-btn approve" onClick={() => handleLeaveAction(l._id, 'Approved')}>
+                      <CheckCircle2 size={12} /> Approve
+                    </button>
+                    <button className="act-btn reject" onClick={() => handleLeaveAction(l._id, 'Rejected')}>
+                      <XCircle size={12} /> Reject
+                    </button>
                   </div>
                 </div>
               </div>
@@ -301,6 +444,8 @@ const KusumAdmin = ({ onLogout }) => {
       </div>
     </div>
   );
+};
+
 
   const renderEmployees = () => {
     const getWeekRange = (date) => {
@@ -433,7 +578,9 @@ const KusumAdmin = ({ onLogout }) => {
     });
 
     const displayLogs = attendanceView === 'Daily' 
-      ? employees.map(emp => {
+      ? employees
+          .filter(emp => filteredAttendance.some(a => (a.employee?._id === emp._id || a.employee === emp._id)))
+          .map(emp => {
           const record = filteredAttendance.find(a => (a.employee?._id === emp._id || a.employee === emp._id));
           return { emp, record, date: attendanceDate };
         })
@@ -504,7 +651,7 @@ const KusumAdmin = ({ onLogout }) => {
         <div className="grid-card full-card">
           <div className="table-responsive">
             <table className="modern-table">
-              <thead><tr><th>Employee</th><th>Date</th><th>Punch In</th><th>Punch Out</th><th>Status</th></tr></thead>
+              <thead><tr><th>Employee</th><th>Date</th><th>First In</th><th>Last Out</th><th>Work Hours</th><th>Status</th><th>Actions</th></tr></thead>
               <tbody>
                 {displayLogs.map((item, i) => {
                   const { emp, record, date } = item;
@@ -512,7 +659,8 @@ const KusumAdmin = ({ onLogout }) => {
                   
                   const leave = leaves.find(l => (l.employeeId?._id === emp._id || l.employeeId === emp._id) && l.status === 'Approved' && date >= l.fromDate.split('T')[0] && date <= l.toDate.split('T')[0]);
                   const inPunch = record?.punches?.find(p => p.type === 'In');
-                  const outPunch = record?.punches?.find(p => p.type === 'Out');
+                  const outPunches = record?.punches?.filter(p => p.type === 'Out');
+                  const outPunch = outPunches?.length > 0 ? outPunches[outPunches.length - 1] : null;
   
                   let status = 'ABSENT';
                   let statusClass = 'late';
@@ -535,7 +683,19 @@ const KusumAdmin = ({ onLogout }) => {
                       <td style={{fontWeight: '600', color: '#64748B'}}>{date}</td>
                       <td className="t-time">{inPunch?.time || '---'}</td>
                       <td className="t-time">{outPunch?.time || '---'}</td>
+                      <td style={{fontWeight: '700', color: 'var(--primary)'}}>{record?.totalWorkingHours || '00h 00m'}</td>
                       <td><span className={`status-pill ${statusClass}`}>{status}</span></td>
+                      <td>
+                        {record && (
+                          <button 
+                            className="view-btn" 
+                            style={{ padding: '4px 8px', fontSize: '11px' }}
+                            onClick={() => { setSelectedAttendance(record); setShowPunchLogs(true); }}
+                          >
+                            <FileClock size={14} /> Logs
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
@@ -744,12 +904,16 @@ const KusumAdmin = ({ onLogout }) => {
                     <td className="t-time">
                       {new Date(l.fromDate).toLocaleDateString()} - {new Date(l.toDate).toLocaleDateString()}
                     </td>
-                    <td><span className={`status-pill ${l.status === 'Approved' ? 'in' : 'late'}`}>{l.status.toUpperCase()}</span></td>
+                    <td><span className={`status-pill ${l.status === 'Approved' ? 'in' : l.status === 'Rejected' ? 'out' : 'late'}`}>{l.status.toUpperCase()}</span></td>
                     <td>
                       {l.status === 'Pending' && (
                         <div className="action-btns">
-                          <button className="btn-approve" onClick={() => handleLeaveAction(l._id, 'Approved')}>Approve</button>
-                          <button className="btn-reject" onClick={() => handleLeaveAction(l._id, 'Rejected')}>Reject</button>
+                          <button className="btn-approve" onClick={() => handleLeaveAction(l._id, 'Approved')}>
+                            <CheckCircle2 size={14} /> Approve
+                          </button>
+                          <button className="btn-reject" onClick={() => handleLeaveAction(l._id, 'Rejected')}>
+                            <XCircle size={14} /> Reject
+                          </button>
                         </div>
                       )}
                     </td>
@@ -964,12 +1128,41 @@ const KusumAdmin = ({ onLogout }) => {
           <div className="search-bar"><Search size={18} color="#94A3B8" /><input type="text" placeholder="Search employees, locations..." /></div>
           <div className="header-actions">
             <div className="time-display"><Clock size={16} /><span>{currentTime.toLocaleTimeString()}</span></div>
-            <button className="icon-btn notification" onClick={() => setActiveTab('Leaves')}>
-              <Bell size={18} />
-              {leaves.filter(l => l.status === 'Pending').length > 0 && (
-                <div className="badge">{leaves.filter(l => l.status === 'Pending').length}</div>
+            <div className="notification-wrapper">
+              <button className={`icon-btn notification ${showNotifications ? 'active' : ''}`} onClick={() => setShowNotifications(!showNotifications)}>
+                <Bell size={18} />
+                {notifications.filter(n => !n.isRead).length > 0 && (
+                  <div className="badge">{notifications.filter(n => !n.isRead).length}</div>
+                )}
+              </button>
+              
+              {showNotifications && (
+                <div className="notif-dropdown animate-fade">
+                  <div className="notif-header">
+                    <h4>Recent Alerts</h4>
+                    <span onClick={() => setShowNotifications(false)}>Close</span>
+                  </div>
+                  <div className="notif-list">
+                    {notifications.length === 0 ? (
+                      <div className="empty-notif">No new alerts</div>
+                    ) : (
+                      notifications.map(n => (
+                        <div key={n._id} className={`notif-item ${!n.isRead ? 'unread' : ''} ${n.type === 'Range Alert' ? 'alert' : ''}`}>
+                          <div className="notif-icon">
+                            {n.type === 'Range Alert' ? <AlertTriangle size={14} /> : <Bell size={14} />}
+                          </div>
+                          <div className="notif-content">
+                            <p className="notif-title">{n.title}</p>
+                            <p className="notif-msg">{n.message}</p>
+                            <span className="notif-time">{new Date(n.timestamp).toLocaleString()}</span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
               )}
-            </button>
+            </div>
             <button className="add-btn" onClick={() => { setSelectedEmp({ name: '', role: '', email: '', phone: '', salary: '' }); setModalType('add'); setShowModal(true); }}>
               <Plus size={18} /> <span>Quick Action</span>
             </button>
@@ -1061,7 +1254,84 @@ const KusumAdmin = ({ onLogout }) => {
             </div>
           </div>
         )}
-      </main>
+        {/* Punch Logs Audit Modal */}
+        {showPunchLogs && selectedAttendance && (
+          <div className="modal-overlay animate-fade">
+            <div className="modal-content" style={{ maxWidth: '500px' }}>
+              <div className="modal-header-premium" style={{ marginBottom: '20px' }}>
+                <h3 className="modal-title-green">Attendance Audit Trail</h3>
+                <button className="close-btn-ghost" onClick={() => setShowPunchLogs(false)}><XCircle size={24} /></button>
+              </div>
+              <div style={{ marginBottom: '20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: '#f8fafc', padding: '15px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                  <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
+                    {selectedAttendance.employee?.name?.[0] || 'E'}
+                  </div>
+                  <div>
+                    <h4 style={{ margin: 0 }}>{selectedAttendance.employee?.name}</h4>
+                    <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>Date: {selectedAttendance.date}</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="activity-timeline" style={{ maxHeight: '400px', overflowY: 'auto', padding: '20px 10px', position: 'relative' }}>
+                <div style={{ position: 'absolute', left: '23px', top: '20px', bottom: '20px', width: '2px', background: '#e2e8f0', zIndex: 0 }}></div>
+                
+                {(selectedAttendance.punches || []).map((p, idx) => (
+                  <div key={idx} style={{ display: 'flex', gap: '20px', marginBottom: '20px', position: 'relative', zIndex: 1 }}>
+                    <div style={{ 
+                      width: '28px', height: '28px', borderRadius: '50%', 
+                      background: p.type === 'In' ? '#10b981' : '#ef4444', 
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      border: '4px solid white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                      flexShrink: 0, marginTop: '10px'
+                    }}>
+                      {p.type === 'In' ? <LogIn size={12} color="white" /> : <LogOut size={12} color="white" />}
+                    </div>
+                    
+                    <div style={{ 
+                      flex: 1, background: 'white', border: '1px solid #e2e8f0', 
+                      borderRadius: '12px', padding: '15px', 
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                      position: 'relative'
+                    }}>
+                      <div style={{
+                        position: 'absolute', left: '-6px', top: '18px', width: '10px', height: '10px',
+                        background: 'white', borderLeft: '1px solid #e2e8f0', borderBottom: '1px solid #e2e8f0',
+                        transform: 'rotate(45deg)'
+                      }}></div>
+                      
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ 
+                            padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '700', textTransform: 'uppercase',
+                            background: p.type === 'In' ? '#ecfdf5' : '#fff1f2',
+                            color: p.type === 'In' ? '#059669' : '#e11d48'
+                          }}>
+                            Punch {p.type}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#64748b', fontSize: '0.85rem', fontWeight: '600' }}>
+                          <Clock size={14} /> {p.time}
+                        </div>
+                      </div>
+                      
+                      <p style={{ margin: 0, fontSize: '0.85rem', color: '#475569', display: 'flex', alignItems: 'flex-start', gap: '6px', lineHeight: '1.4' }}>
+                        <MapPin size={14} color="#94a3b8" style={{ marginTop: '2px', flexShrink: 0 }} /> 
+                        <span>{p.location?.address || 'Site Location Recorded'}</span>
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              <div style={{ marginTop: '20px', padding: '15px', background: 'var(--primary-soft)', borderRadius: '12px', textAlign: 'center' }}>
+                <span style={{ fontSize: '0.9rem', fontWeight: '600', color: 'var(--primary-dark)' }}>Total Working Duration: {selectedAttendance.totalWorkingHours}</span>
+              </div>
+            </div>
+          </div>
+        )}
+        </main>
     </div>
   );
 };

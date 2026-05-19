@@ -98,10 +98,10 @@ const Dashboard = ({ user }) => {
         }
     };
     const stats = [
-        { label: 'Total Strength', value: realStats?.totalEmployees || '0', icon: Users, color: '#3b82f6', bg: '#eff6ff', trend: '+2 this week' },
-        { label: 'Currently In', value: realStats?.activeToday || '0', icon: UserCheck, color: '#10b981', bg: '#ecfdf5', trend: 'Live' },
-        { label: 'Pending Approvals', value: realStats?.pendingLeaves || '0', icon: AlertCircle, color: '#f59e0b', bg: '#fffbeb', trend: 'Action Needed' },
-        { label: 'Visits Recorded', value: realStats?.totalVisitsToday || '0', icon: MapPin, color: '#8b5cf6', bg: '#f5f3ff', trend: 'Today' },
+        { label: 'Total Strength', value: realStats?.totalEmployees || '0', icon: Users, color: '#3b82f6', bg: '#eff6ff', trends: [] },
+        { label: 'Currently In', value: realStats?.activeToday || '0', icon: UserCheck, color: '#10b981', bg: '#ecfdf5', trends: [{ label: 'Live Status', color: '#10b981' }, { label: `${realStats?.activeYesterday || 0} yesterday`, color: '#64748b' }] },
+        { label: 'Pending Approvals', value: realStats?.pendingLeaves || '0', icon: AlertCircle, color: '#f59e0b', bg: '#fffbeb', trends: [{ label: 'Action Needed', color: '#f59e0b' }, { label: `${realStats?.pendingYesterday || 0} carried over`, color: '#64748b' }] },
+        { label: 'Visits Recorded', value: realStats?.totalVisitsToday || '0', icon: MapPin, color: '#8b5cf6', bg: '#f5f3ff', trends: [] },
     ];
 
     return (
@@ -145,9 +145,13 @@ const Dashboard = ({ user }) => {
                             <span className="stat-label-modern">{stat.label}</span>
                             <div className="stat-value-wrap">
                                 <h3 className="stat-value-modern">{stat.value}</h3>
-                                <span className="stat-trend-chip" style={{ color: stat.color, backgroundColor: `${stat.color}15` }}>
-                                    {stat.trend}
-                                </span>
+                                <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
+                                    {stat.trends.map((t, idx) => (
+                                        <span key={idx} className="stat-trend-chip" style={{ color: t.color, backgroundColor: `${t.color}15`, fontSize: '0.65rem' }}>
+                                            {t.label}
+                                        </span>
+                                    ))}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -210,7 +214,14 @@ const Dashboard = ({ user }) => {
                             </thead>
                             <tbody>
                                 {employees
-                                    .filter(emp => emp.name.toLowerCase().includes(searchTerm.toLowerCase()))
+                                    .filter(emp => {
+                                        const matchesSearch = emp.name.toLowerCase().includes(searchTerm.toLowerCase());
+                                        const hasAttendance = allAttendance.some(att => 
+                                            (att.employee?._id === emp._id || att.employee === emp._id) && 
+                                            att.date === selectedDate
+                                        );
+                                        return matchesSearch && hasAttendance;
+                                    })
                                     .map((emp, i) => {
                                         const attendance = allAttendance.find(att => 
                                             (att.employee?._id === emp._id || att.employee === emp._id) && 
