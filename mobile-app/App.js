@@ -24,7 +24,7 @@ import { BRAND_NAME, PRIMARY_COLOR } from './constants';
 // import { LOGO_BASE64 } from './';
 
 const { width } = Dimensions.get('window');
-const API_URL = 'http://localhost:5000/api';
+const API_URL = 'https://payroll-system-abxy.onrender.com/api';
 const MAX_WIDTH = 480;
 
 export default function App() {
