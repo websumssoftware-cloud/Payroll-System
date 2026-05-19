@@ -9,8 +9,7 @@ A premium, comprehensive MERN stack-based Employee Payroll & Attendance Manageme
 | Component | Platform | Live URL / Download |
 | :--- | :--- | :--- |
 | **🌐 Web Admin Panel** | Vercel | *[Configure your Vercel URL here]* |
-| **⚙️ Backend API** | Render | [https://payroll-system-abxy.onrender.com](https://payroll-system-abxy.onrender.com) |
-| **📱 Mobile App (Android APK)** | Expo EAS | [Download Android APK](https://expo.dev/accounts/vl-702861/projects/mobile-app/builds/4b6447f7-6005-4c26-9d2b-b4ff1312e39a) |
+| **📱 Mobile App (Android APK)** | Expo EAS | [Direct Download APK](https://expo.dev/artifacts/eas/aiXNvi8Y22Jw75vVhYgua9.apk) |
 
 ---
 
