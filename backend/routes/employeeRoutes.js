@@ -12,8 +12,24 @@ router.get('/dashboard-stats', async (req, res) => {
 
     try {
         const today = new Date().toISOString().split('T')[0];
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+        const lastWeek = new Date();
+        lastWeek.setDate(lastWeek.getDate() - 7);
+        const lastMonth = new Date();
+        lastMonth.setMonth(lastMonth.getMonth() - 1);
+
         const totalEmployees = await Employee.countDocuments({ role: 'Employee' });
+        const employeesWeekly = await Employee.countDocuments({ role: 'Employee', createdAt: { $gte: lastWeek } });
+        const employeesMonthly = await Employee.countDocuments({ role: 'Employee', createdAt: { $gte: lastMonth } });
+
         const pendingLeaves = await LeaveRequest.countDocuments({ status: 'Pending' });
+        const pendingYesterday = await LeaveRequest.countDocuments({ 
+            status: 'Pending', 
+            createdAt: { $lt: new Date().setHours(0,0,0,0) } 
+        });
         
         // Real-time active today: Employees who are currently 'Checked In'
         const Attendance = require('../models/Attendance');
@@ -21,16 +37,32 @@ router.get('/dashboard-stats', async (req, res) => {
             date: today,
             status: 'Checked In'
         });
+        const activeYesterday = await Attendance.countDocuments({
+            date: yesterdayStr,
+            status: 'Checked In'
+        });
 
         const totalVisitsToday = await VisitLog.countDocuments({
             timestamp: { $gte: new Date().setHours(0,0,0,0) }
         });
+        const visitsWeekly = await VisitLog.countDocuments({
+            timestamp: { $gte: lastWeek }
+        });
+        const visitsMonthly = await VisitLog.countDocuments({
+            timestamp: { $gte: lastMonth }
+        });
 
         res.json({
             totalEmployees,
+            employeesWeekly,
+            employeesMonthly,
             activeToday,
+            activeYesterday,
             pendingLeaves,
-            totalVisitsToday
+            pendingYesterday,
+            totalVisitsToday,
+            visitsWeekly,
+            visitsMonthly
         });
     } catch (err) {
         console.error(err.message);
@@ -93,6 +125,29 @@ router.delete('/:id', auth, async (req, res) => {
         res.json({ message: 'Employee deleted' });
     } catch (err) {
         res.status(400).json({ message: err.message });
+    }
+});
+
+// @route   PUT api/employees/profile/update
+// @desc    Update employee profile
+router.put('/profile/update', auth, async (req, res) => {
+    try {
+        const { name, phone, email, designation, profileImage } = req.body;
+        let employee = await Employee.findById(req.user.id);
+        
+        if (!employee) return res.status(404).json({ message: 'Employee not found' });
+
+        if (name) employee.name = name;
+        if (phone) employee.phone = phone;
+        if (email) employee.email = email;
+        if (designation) employee.designation = designation;
+        if (profileImage) employee.profileImage = profileImage;
+
+        await employee.save();
+        res.json(employee);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server error');
     }
 });
 

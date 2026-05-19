@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Shield, LogIn } from 'lucide-react';
 import { API_URL } from '../config';
 
+
 const Login = ({ setAuth }) => {
     const [formData, setFormData] = useState({ email: '', password: '' });
     const [error, setError] = useState('');
@@ -28,11 +29,11 @@ const Login = ({ setAuth }) => {
         <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)' }}>
             <div className="card animate-fade" style={{ width: '100%', maxWidth: '400px', padding: '2.5rem' }}>
                 <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-                    <div style={{ width: '60px', height: '60px', background: 'var(--primary)', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem', color: 'white' }}>
-                        <Shield size={32} />
+                    <div className="login-brand-logo">
+                        <img src="kusum-brand-logo-v2.png" alt="Kusum Farm" className="login-logo-img" />
                     </div>
-                    <h2 style={{ fontSize: '1.5rem', fontWeight: '800' }}>ETS Portal</h2>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Sign in to manage your tracking</p>
+                    <h2 style={{ fontSize: '1.5rem', fontWeight: '800' }}>Kusum Farm</h2>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Sign in to your account</p>
                 </div>
 
                 {error && <div style={{ padding: '10px', background: '#fef2f2', color: '#b91c1c', borderRadius: '8px', marginBottom: '1rem', fontSize: '0.85rem', textAlign: 'center' }}>{error}</div>}
@@ -42,9 +43,9 @@ const Login = ({ setAuth }) => {
                         <label className="form-label">Email Address</label>
                         <div style={{ position: 'relative' }}>
                             <Mail size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                            <input 
-                                type="email" 
-                                className="form-input" 
+                            <input
+                                type="email"
+                                className="form-input"
                                 style={{ paddingLeft: '40px' }}
                                 placeholder="name@company.com"
                                 value={formData.email}
@@ -57,9 +58,9 @@ const Login = ({ setAuth }) => {
                         <label className="form-label">Password</label>
                         <div style={{ position: 'relative' }}>
                             <Lock size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                            <input 
-                                type="password" 
-                                className="form-input" 
+                            <input
+                                type="password"
+                                className="form-input"
                                 style={{ paddingLeft: '40px' }}
                                 placeholder="••••••••"
                                 value={formData.password}
@@ -74,7 +75,7 @@ const Login = ({ setAuth }) => {
                 </form>
 
                 <div style={{ marginTop: '1.5rem', textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                    Admin: admin@ets.com / 123456
+                    Admin: admin@kusum.com / 123456
                 </div>
             </div>
         </div>

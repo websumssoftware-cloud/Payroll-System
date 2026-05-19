@@ -70,6 +70,19 @@ router.post('/track', async (req, res) => {
     });
 
     await newLog.save();
+
+    // Create notification if out of range
+    if (notes && notes.includes('OUT OF RANGE')) {
+      const Notification = require('../models/Notification');
+      const newNotif = new Notification({
+        employee: employeeId,
+        title: 'Geofence Violation',
+        message: notes,
+        type: 'Range Alert'
+      });
+      await newNotif.save();
+    }
+
     res.status(201).json({ message: 'Location tracked' });
   } catch (error) {
     res.status(500).json({ message: 'Tracking Error', error: error.message });

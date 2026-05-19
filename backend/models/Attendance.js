@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 
 const PunchSchema = new mongoose.Schema({
     time: { type: String, required: true },
+    timestamp: { type: Date, default: Date.now },
     type: { type: String, enum: ['In', 'Out'], required: true },
     location: {
         lat: Number,
@@ -17,7 +18,7 @@ const AttendanceSchema = new mongoose.Schema({
     totalWorkingHours: { type: String, default: '00h 00m' },
     totalBreakHours: { type: String, default: '00h 00m' },
     overtimeHours: { type: String, default: '00h 00m' },
-    status: { type: String, enum: ['Checked In', 'Not in Yet', 'Time Off', 'Absent'], default: 'Not in Yet' }
+    status: { type: String, enum: ['Checked In', 'Late', 'Not in Yet', 'Time Off', 'Absent'], default: 'Not in Yet' }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Attendance', AttendanceSchema);

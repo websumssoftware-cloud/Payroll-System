@@ -98,10 +98,10 @@ const Dashboard = ({ user }) => {
         }
     };
     const stats = [
-        { label: 'Total Strength', value: realStats?.totalEmployees || '0', icon: Users, color: '#3b82f6', bg: '#eff6ff', trend: '+2 this week' },
-        { label: 'Currently In', value: realStats?.activeToday || '0', icon: UserCheck, color: '#10b981', bg: '#ecfdf5', trend: 'Live' },
-        { label: 'Pending Approvals', value: realStats?.pendingLeaves || '0', icon: AlertCircle, color: '#f59e0b', bg: '#fffbeb', trend: 'Action Needed' },
-        { label: 'Visits Recorded', value: realStats?.totalVisitsToday || '0', icon: MapPin, color: '#8b5cf6', bg: '#f5f3ff', trend: 'Today' },
+        { label: 'Total Strength', value: realStats?.totalEmployees || '0', icon: Users, color: '#3b82f6', bg: '#eff6ff', trends: [] },
+        { label: 'Currently In', value: realStats?.activeToday || '0', icon: UserCheck, color: '#10b981', bg: '#ecfdf5', trends: [{ label: 'Live Status', color: '#10b981' }, { label: `${realStats?.activeYesterday || 0} yesterday`, color: '#64748b' }] },
+        { label: 'Pending Approvals', value: realStats?.pendingLeaves || '0', icon: AlertCircle, color: '#f59e0b', bg: '#fffbeb', trends: [{ label: 'Action Needed', color: '#f59e0b' }, { label: `${realStats?.pendingYesterday || 0} carried over`, color: '#64748b' }] },
+        { label: 'Visits Recorded', value: realStats?.totalVisitsToday || '0', icon: MapPin, color: '#8b5cf6', bg: '#f5f3ff', trends: [] },
     ];
 
     return (
@@ -135,28 +135,24 @@ const Dashboard = ({ user }) => {
                 </div>
             </header>
 
-            <div className="stats-grid">
+            <div className="stats-grid-modern">
                 {stats.map((stat, i) => (
-                    <div key={i} className="stat-card" style={{ padding: '1.8rem', position: 'relative', overflow: 'hidden' }}>
-                        <div style={{ 
-                            position: 'absolute', 
-                            top: '-10px', 
-                            right: '-10px', 
-                            width: '80px', 
-                            height: '80px', 
-                            background: stat.bg, 
-                            borderRadius: '50%', 
-                            opacity: 0.4 
-                        }}></div>
-                        <div className="stat-icon" style={{ background: stat.bg, color: stat.color, marginBottom: '1rem', width: '60px', height: '60px' }}>
-                            <stat.icon size={28} />
+                    <div key={i} className="stat-card-horizontal">
+                        <div className="stat-icon-wrapper" style={{ background: stat.bg, color: stat.color }}>
+                            <stat.icon size={20} />
                         </div>
-                        <div>
-                            <p style={{ fontSize: '0.95rem', color: 'var(--text-muted)', fontWeight: '600', marginBottom: '6px' }}>{stat.label}</p>
-                            <h3 style={{ fontSize: '2.2rem', fontWeight: '800', color: '#1e293b' }}>{stat.value}</h3>
-                            <p style={{ fontSize: '0.8rem', color: stat.color, fontWeight: '700', marginTop: '10px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                <Activity size={14} /> {stat.trend}
-                            </p>
+                        <div className="stat-content">
+                            <span className="stat-label-modern">{stat.label}</span>
+                            <div className="stat-value-wrap">
+                                <h3 className="stat-value-modern">{stat.value}</h3>
+                                <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
+                                    {stat.trends.map((t, idx) => (
+                                        <span key={idx} className="stat-trend-chip" style={{ color: t.color, backgroundColor: `${t.color}15`, fontSize: '0.65rem' }}>
+                                            {t.label}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 ))}
@@ -218,7 +214,14 @@ const Dashboard = ({ user }) => {
                             </thead>
                             <tbody>
                                 {employees
-                                    .filter(emp => emp.name.toLowerCase().includes(searchTerm.toLowerCase()))
+                                    .filter(emp => {
+                                        const matchesSearch = emp.name.toLowerCase().includes(searchTerm.toLowerCase());
+                                        const hasAttendance = allAttendance.some(att => 
+                                            (att.employee?._id === emp._id || att.employee === emp._id) && 
+                                            att.date === selectedDate
+                                        );
+                                        return matchesSearch && hasAttendance;
+                                    })
                                     .map((emp, i) => {
                                         const attendance = allAttendance.find(att => 
                                             (att.employee?._id === emp._id || att.employee === emp._id) && 
