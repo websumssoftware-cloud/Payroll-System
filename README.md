@@ -8,7 +8,7 @@ A premium, comprehensive MERN stack-based Employee Payroll & Attendance Manageme
 
 | Component | Platform | Live URL / Download |
 | :--- | :--- | :--- |
-| **🌐 Web Admin Panel** | Vercel | *[Configure your Vercel URL here]* |
+| **🌐 Web Admin Panel** | Vercel | [Live Website](https://payroll-system-git-main-vikram7007s-projects.vercel.app) |
 | **📱 Mobile App (Android APK)** | Expo EAS | [Direct Download APK](https://expo.dev/artifacts/eas/aiXNvi8Y22Jw75vVhYgua9.apk) |
 
 ---
