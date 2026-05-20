@@ -326,6 +326,35 @@ export default function App() {
     }
   };
 
+  const handleUpdateProfile = async () => {
+    if (!editName || !editEmail) return Alert.alert('Error', 'Name and Email are required');
+    setLoading(true);
+    try {
+      const res = await axios.put(`${API_URL}/employees/profile/update`, {
+        name: editName,
+        email: editEmail,
+        phone: editPhone
+      }, {
+        headers: { 'x-auth-token': token }
+      });
+      
+      const updatedUser = res.data;
+      await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+      setUser(updatedUser);
+      Alert.alert('Success', 'Profile updated successfully');
+      setProfileSuccess(true);
+      setTimeout(() => {
+        setProfileSuccess(false);
+        setShowEditProfileModal(false);
+      }, 2000);
+    } catch (err) {
+      Alert.alert('Error', 'Failed to update profile');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleLogout = async () => {
     await AsyncStorage.multiRemove(['user', 'token']);
     setUser(null);
