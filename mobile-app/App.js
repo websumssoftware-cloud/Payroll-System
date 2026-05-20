@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet, Text, View, TextInput, TouchableOpacity, SafeAreaView,
   StatusBar, ScrollView, Dimensions, KeyboardAvoidingView, Platform,
-  ActivityIndicator, Image, RefreshControl, Alert
+  ActivityIndicator, Image, RefreshControl, Alert, Modal
 } from 'react-native';
 import {
   Clock, Calendar, FileText, Bell, Menu, Sun, CheckCircle2, Navigation,
@@ -10,7 +10,7 @@ import {
   ChevronRight, User, CheckCircle, XCircle, Palmtree,
   ArrowRightCircle, Download, Send, PlusCircle, Leaf, Sprout,
   Building2, Camera, Plus, Home, LayoutDashboard, Search, Settings, Phone, Info,
-  FileDown, Target, UserCheck, UserX
+  FileDown, Target, UserCheck, UserX, AlertTriangle
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -35,6 +35,22 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [customAlert, setCustomAlert] = useState({
+    visible: false,
+    title: '',
+    message: '',
+    type: 'success',
+  });
+
+  const showCustomAlert = (title, message, type = 'success') => {
+    setCustomAlert({
+      visible: true,
+      title,
+      message,
+      type,
+    });
+  };
+
 
   const [clientName, setClientName] = useState('');
   const [visitPurpose, setVisitPurpose] = useState('');
@@ -136,11 +152,11 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (isLoggedIn && user) {
+    if (isLoggedIn && token) {
       fetchData();
       getLocation();
     }
-  }, [isLoggedIn, user]);
+  }, [isLoggedIn, token]);
 
   const checkLoginStatus = async () => {
     try {
@@ -194,6 +210,10 @@ export default function App() {
 
     } catch (err) {
       console.error('Fetch Data Error:', err);
+      if (err.response && err.response.status === 401) {
+        await handleLogout();
+        showCustomAlert('Session Expired', 'Your session has expired. Please login again.', 'error');
+      }
     } finally {
       setRefreshing(false);
     }
@@ -209,6 +229,9 @@ export default function App() {
       setUnreadCount((res.data || []).filter(n => !n.isRead).length);
     } catch (err) {
       console.error('Fetch Notifications Error:', err);
+      if (err.response && err.response.status === 401) {
+        await handleLogout();
+      }
     }
   };
 
@@ -220,6 +243,9 @@ export default function App() {
       fetchNotifications();
     } catch (err) {
       console.error('Mark Read Error:', err);
+      if (err.response && err.response.status === 401) {
+        await handleLogout();
+      }
     }
   };
 
@@ -232,7 +258,7 @@ export default function App() {
   }, [isLoggedIn, user]);
 
   const handleLogin = async () => {
-    if (!email || !password) return alert('Enter credentials');
+    if (!email || !password) return showCustomAlert('Error', 'Enter credentials', 'error');
     setLoading(true);
     try {
       const res = await axios.post(`${API_URL}/auth/login`, { email, password });
@@ -242,12 +268,12 @@ export default function App() {
       setToken(res.data.token);
       setIsLoggedIn(true);
     } catch (err) {
-      alert('Login Failed: ' + (err.response?.data?.message || err.message));
+      showCustomAlert('Login Failed', err.response?.data?.message || err.message, 'error');
     } finally { setLoading(false); }
   };
 
   const handleApplyLeave = async () => {
-    if (!lStart || !lReason) return Alert.alert('Error', 'Please fill required fields');
+    if (!lStart || !lReason) return showCustomAlert('Error', 'Please fill required fields', 'error');
     setLoading(true);
     try {
       await axios.post(`${API_URL}/leaves/apply`, {
@@ -257,19 +283,19 @@ export default function App() {
         endDate: lEnd.toLocaleDateString('en-CA'),
         reason: lReason
       });
-      Alert.alert('Success', 'Leave application submitted');
+      showCustomAlert('Success', 'Leave application submitted', 'success');
       setShowLeaveModal(false);
       setLStart(new Date()); setLEnd(new Date()); setLReason('');
       fetchData();
     } catch (err) {
-      Alert.alert('Error', 'Failed to submit application');
+      showCustomAlert('Error', 'Failed to submit application', 'error');
     } finally {
       setLoading(false);
     }
   };
 
   const handleUpdateProfile = async () => {
-    if (!editName || !editEmail) return Alert.alert('Error', 'Name and Email are required');
+    if (!editName || !editEmail) return showCustomAlert('Error', 'Name and Email are required', 'error');
     setLoading(true);
     try {
       const res = await axios.put(`${API_URL}/employees/profile/update`, {
@@ -283,15 +309,18 @@ export default function App() {
       const updatedUser = res.data;
       await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
       setUser(updatedUser);
-      Alert.alert('Success', 'Profile updated successfully');
+      showCustomAlert('Success', 'Profile updated successfully', 'success');
       setProfileSuccess(true);
       setTimeout(() => {
         setProfileSuccess(false);
         setShowEditProfileModal(false);
       }, 2000);
     } catch (err) {
-      Alert.alert('Error', 'Failed to update profile');
+      showCustomAlert('Error', 'Failed to update profile', 'error');
       console.error(err);
+      if (err.response && err.response.status === 401) {
+        await handleLogout();
+      }
     } finally {
       setLoading(false);
     }
@@ -307,7 +336,7 @@ export default function App() {
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') return Alert.alert('Error', 'Camera permission required to take site photos');
+    if (status !== 'granted') return showCustomAlert('Error', 'Camera permission required to take site photos', 'error');
 
     let result = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -339,9 +368,10 @@ export default function App() {
           );
 
           if (distance > 1) { // 1km range
-            Alert.alert(
+            showCustomAlert(
               "Range Alert",
-              `You have moved ${distance.toFixed(2)}km away from the site. Please stay within 1km.`
+              `You have moved ${distance.toFixed(2)}km away from the site. Please stay within 1km.`,
+              'warning'
             );
             // Optionally notify backend about range violation
             await axios.post(`${API_URL}/visits/track`, {
@@ -373,12 +403,12 @@ export default function App() {
 
   const handleSiteVisit = async () => {
     if (!clientName || !visitPurpose || !visitImage) {
-      return Alert.alert('Error', 'Please fill all fields and take a photo');
+      return showCustomAlert('Error', 'Please fill all fields and take a photo', 'error');
     }
     setLoading(true);
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') return Alert.alert('Error', 'Location permission required');
+      if (status !== 'granted') return showCustomAlert('Error', 'Location permission required', 'error');
 
       const loc = await Location.getCurrentPositionAsync({});
       const visitData = {
@@ -394,7 +424,7 @@ export default function App() {
       };
 
       await axios.post(`${API_URL}/visits/log`, visitData);
-      Alert.alert('Success', 'Visit recorded! Movement tracking started.');
+      showCustomAlert('Success', 'Visit recorded! Movement tracking started.', 'success');
       setClientName('');
       setVisitPurpose('');
       setVisitImage(null);
@@ -404,7 +434,7 @@ export default function App() {
       startTracking(startLoc);
       setActiveTab('Home');
     } catch (err) {
-      Alert.alert('Error', 'Failed to log visit: ' + (err.response?.data?.message || err.message));
+      showCustomAlert('Error', 'Failed to log visit: ' + (err.response?.data?.message || err.message), 'error');
     } finally {
       setLoading(false);
     }
@@ -422,9 +452,9 @@ export default function App() {
       });
       setIsCheckedIn(!isCheckedIn);
       fetchData();
-      Alert.alert(`Successfully punched ${type}`, `Total working hours today: ${res.data.totalHours || '00h 00m'}`);
+      showCustomAlert(`Successfully punched ${type}`, `Total working hours today: ${res.data.totalHours || '00h 00m'}`, 'success');
     } catch (err) {
-      alert('Punch Failed: ' + (err.response?.data?.message || err.message));
+      showCustomAlert('Punch Failed', err.response?.data?.message || err.message, 'error');
     } finally {
       setLoading(false);
     }
@@ -437,7 +467,7 @@ export default function App() {
     
     // Ensure history exists
     if (!attendanceHistory || attendanceHistory.length === 0) {
-      Alert.alert('Empty History', 'Please wait for your attendance history to load.');
+      showCustomAlert('Empty History', 'Please wait for your attendance history to load.', 'info');
       return;
     }
 
@@ -590,7 +620,7 @@ export default function App() {
       }
     } catch (error) {
       console.error(error);
-      Alert.alert('Error', 'Failed to generate PDF report');
+      showCustomAlert('Error', 'Failed to generate PDF report', 'error');
     } finally {
       setLoading(false);
     }
@@ -1348,6 +1378,45 @@ export default function App() {
           );
         })}
       </View>
+      <Modal
+        visible={customAlert.visible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setCustomAlert(prev => ({ ...prev, visible: false }))}
+      >
+        <View style={styles.alertOverlay}>
+          <View style={styles.alertContent}>
+            <View style={[
+              styles.alertIconBg,
+              customAlert.type === 'success' && { backgroundColor: '#ECFDF5' },
+              customAlert.type === 'error' && { backgroundColor: '#FEE2E2' },
+              customAlert.type === 'warning' && { backgroundColor: '#FFFBEB' },
+              customAlert.type === 'info' && { backgroundColor: '#EFF6FF' },
+            ]}>
+              {customAlert.type === 'success' && <CheckCircle2 color="#10B981" size={40} />}
+              {customAlert.type === 'error' && <XCircle color="#EF4444" size={40} />}
+              {customAlert.type === 'warning' && <AlertTriangle color="#F59E0B" size={40} />}
+              {customAlert.type === 'info' && <Info color="#2563EB" size={40} />}
+            </View>
+            
+            <Text style={styles.alertTitle}>{customAlert.title}</Text>
+            <Text style={styles.alertMessage}>{customAlert.message}</Text>
+            
+            <TouchableOpacity 
+              style={[
+                styles.alertBtn,
+                customAlert.type === 'success' && { backgroundColor: '#10B981' },
+                customAlert.type === 'error' && { backgroundColor: '#EF4444' },
+                customAlert.type === 'warning' && { backgroundColor: '#F59E0B' },
+                customAlert.type === 'info' && { backgroundColor: '#2563EB' },
+              ]}
+              onPress={() => setCustomAlert(prev => ({ ...prev, visible: false }))}
+            >
+              <Text style={styles.alertBtnText}>OK</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1542,5 +1611,59 @@ const styles = StyleSheet.create({
   inputBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 16, paddingHorizontal: 16, height: 58, marginBottom: 16 },
   input: { flex: 1, marginLeft: 12, fontSize: 16, color: '#0F172A', outlineStyle: 'none' },
   loginBtn: { backgroundColor: '#2563EB', height: 58, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginTop: 12 },
-  loginBtnText: { color: '#fff', fontSize: 18, fontWeight: '700' }
+  loginBtnText: { color: '#fff', fontSize: 18, fontWeight: '700' },
+  alertOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 2000,
+  },
+  alertContent: {
+    backgroundColor: '#fff',
+    width: '85%',
+    borderRadius: 28,
+    padding: 24,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 25,
+    elevation: 25,
+  },
+  alertIconBg: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  alertTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#0F172A',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  alertMessage: {
+    fontSize: 15,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+    fontWeight: '500',
+  },
+  alertBtn: {
+    width: '100%',
+    height: 52,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  alertBtnText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
 });
