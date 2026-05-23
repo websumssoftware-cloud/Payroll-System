@@ -1,10 +1,7 @@
-<div align="center">
-  <img src="frontend/src/assets/kusum_cow_logo.jpg" alt="Kusum Farm Logo" width="250" />
-</div>
-
-<br/>
-
-# Kusum Farm - Payroll & Attendance System
+<h1 align="center">
+  <img src="frontend/src/assets/kusum_cow_logo.jpg" alt="Kusum Farm Logo" width="60" align="center" style="margin-right: 15px;" /> 
+  Kusum Farm - Payroll & Attendance System
+</h1>
 
 A premium, comprehensive MERN stack-based Employee Payroll & Attendance Management System featuring real-time location-based geofencing, field visit tracking, auto-computed salaries, and a dedicated mobile application for remote employees.
 
