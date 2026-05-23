@@ -157,7 +157,7 @@ const LiveTracking = () => {
                                         <Popup>
                                             <div style={{ padding: '5px' }}>
                                                 <h4 style={{ margin: '0 0 5px 0' }}>{data.employee.name}</h4>
-                                                <p style={{ margin: '0', fontSize: '12px' }}>{data.visit.clientName}</p>
+                                                <p style={{ margin: '0', fontSize: '12px' }}>{data.visit.clientName}{data.visit.cityName ? ` - ${data.visit.cityName}` : ''}</p>
                                                 <p style={{ margin: '5px 0', fontSize: '10px', color: '#64748b' }}>
                                                     Last updated: {new Date(data.history[data.history.length-1]?.timestamp || data.visit.timestamp).toLocaleTimeString()}
                                                 </p>
@@ -172,7 +172,7 @@ const LiveTracking = () => {
 
                                     {/* Start Point Marker */}
                                     <Marker position={[data.visit.location.lat, data.visit.location.lng]}>
-                                        <Popup>Visit Start: {data.visit.clientName}</Popup>
+                                        <Popup>Visit Start: {data.visit.clientName}{data.visit.cityName ? ` - ${data.visit.cityName}` : ''}</Popup>
                                     </Marker>
                                 </React.Fragment>
                             );
@@ -219,7 +219,7 @@ const LiveTracking = () => {
                                         </div>
                                         <div style={{ flex: 1 }}>
                                             <div style={{ fontWeight: '700', fontSize: '0.95rem' }}>{data.employee.name}</div>
-                                            <div style={{ fontSize: '0.8rem', color: '#64748b' }}>{data.visit.clientName}</div>
+                                            <div style={{ fontSize: '0.8rem', color: '#64748b' }}>{data.visit.clientName}{data.visit.cityName ? ` - ${data.visit.cityName}` : ''}</div>
                                         </div>
                                         {isOutOfRange && <AlertTriangle size={18} color="#ef4444" />}
                                     </div>

@@ -67,7 +67,7 @@ router.post('/punch', async (req, res) => {
       type, // 'In' or 'Out'
       time: now.toLocaleTimeString(),
       timestamp: now,
-      location
+      location: typeof location === 'string' ? { address: location } : location
     });
 
     // Calculate total hours so far

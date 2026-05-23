@@ -10,6 +10,10 @@ const visitSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  cityName: {
+    type: String,
+    default: ""
+  },
   purpose: {
     type: String,
     required: true
@@ -20,6 +24,18 @@ const visitSchema = new mongoose.Schema({
     address: String
   },
   imageUrl: {
+    type: String,
+    default: ""
+  },
+  farmerDOB: {
+    type: String,
+    default: ""
+  },
+  farmerContact: {
+    type: String,
+    default: ""
+  },
+  monthlySellVolume: {
     type: String,
     default: ""
   },

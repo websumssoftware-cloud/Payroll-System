@@ -84,14 +84,14 @@ router.get('/', async (req, res) => {
 router.post('/', auth, async (req, res) => {
     if (req.user.role !== 'Admin') return res.status(403).json({ message: 'Access denied' });
 
-    const { name, email, password, employeeId, role, department, designation } = req.body;
+    const { name, email, password, employeeId, role, department, designation, phone, salary } = req.body;
 
     try {
         let employee = await Employee.findOne({ email });
         if (employee) return res.status(400).json({ message: 'Employee already exists' });
 
         employee = new Employee({
-            name, email, password, employeeId, role, department, designation
+            name, email, password, employeeId, role, department, designation, phone, salary
         });
 
         const salt = await bcrypt.genSalt(10);

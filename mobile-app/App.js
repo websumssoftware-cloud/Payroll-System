@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, createElement } from 'react';
 import {
   StyleSheet, Text, View, TextInput, TouchableOpacity, SafeAreaView,
   StatusBar, ScrollView, Dimensions, KeyboardAvoidingView, Platform,
@@ -10,7 +10,7 @@ import {
   ChevronRight, User, CheckCircle, XCircle, Palmtree,
   ArrowRightCircle, Download, Send, PlusCircle, Leaf, Sprout,
   Building2, Camera, Plus, Home, LayoutDashboard, Search, Settings, Phone, Info,
-  FileDown, Target, UserCheck, UserX, AlertTriangle
+  FileDown, Target, UserCheck, UserX, AlertTriangle, TrendingUp
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -21,11 +21,19 @@ import * as Sharing from 'expo-sharing';
 import * as ImagePicker from 'expo-image-picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { BRAND_NAME, PRIMARY_COLOR } from './constants';
-// import { LOGO_BASE64 } from './';
+import { LOGO_BASE64 } from './logo';
 
 const { width } = Dimensions.get('window');
-const API_URL = 'https://payroll-system-abxy.onrender.com/api';
+const API_URL = 'http://localhost:5000/api';
 const MAX_WIDTH = 480;
+
+const formatPunchTime = (punch) => {
+  if (!punch) return '-';
+  if (punch.timestamp) {
+    return new Date(punch.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+  }
+  return punch.time || '-';
+};
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -53,6 +61,11 @@ export default function App() {
 
 
   const [clientName, setClientName] = useState('');
+  const [cityName, setCityName] = useState('');
+  const [farmerDOB, setFarmerDOB] = useState('');
+  const [showFarmerDOBPicker, setShowFarmerDOBPicker] = useState(false);
+  const [farmerContact, setFarmerContact] = useState('');
+  const [monthlySellVolume, setMonthlySellVolume] = useState('');
   const [visitPurpose, setVisitPurpose] = useState('');
   const [visitImage, setVisitImage] = useState(null);
   const [visitImageBase64, setVisitImageBase64] = useState(null);
@@ -78,6 +91,7 @@ export default function App() {
 
   // Leave Form State
   const [lType, setLType] = useState('Casual Leave');
+  const [showLeaveDropdown, setShowLeaveDropdown] = useState(false);
   const [lStart, setLStart] = useState(new Date());
   const [lEnd, setLEnd] = useState(new Date());
   const [lReason, setLReason] = useState('');
@@ -133,9 +147,31 @@ export default function App() {
   const getLocation = async () => {
     try {
       let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') return;
+      if (status !== 'granted') {
+        setLocationName("Location Permission Denied");
+        showCustomAlert('Permission Denied', 'Please click the lock icon 🔒 in your browser URL bar, allow Location access, and try again.', 'error');
+        return;
+      }
 
-      let loc = await Location.getCurrentPositionAsync({});
+      let loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      
+      if (Platform.OS === 'web') {
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${loc.coords.latitude}&lon=${loc.coords.longitude}`);
+          const data = await res.json();
+          if (data && data.display_name) {
+            const parts = data.display_name.split(',').map(s => s.trim());
+            const uniqueParts = [...new Set(parts)].slice(0, 3);
+            setLocationName(uniqueParts.join(', '));
+            return;
+          }
+        } catch (err) {
+          console.log("Web Geocode Error", err);
+        }
+        setLocationName(`${loc.coords.latitude.toFixed(4)}, ${loc.coords.longitude.toFixed(4)}`);
+        return;
+      }
+
       let address = await Location.reverseGeocodeAsync({
         latitude: loc.coords.latitude,
         longitude: loc.coords.longitude
@@ -403,34 +439,52 @@ export default function App() {
   };
 
   const handleSiteVisit = async () => {
-    if (!clientName || !visitPurpose || !visitImage) {
+    if (!clientName || !cityName || !visitPurpose || !visitImage || !farmerContact || !monthlySellVolume || !farmerDOB) {
       return showCustomAlert('Error', 'Please fill all fields and take a photo', 'error');
     }
     setLoading(true);
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') return showCustomAlert('Error', 'Location permission required', 'error');
+      
+      let lat = 19.0760;
+      let lng = 72.8777;
 
-      const loc = await Location.getCurrentPositionAsync({});
+      if (status !== 'granted') {
+        setLoading(false);
+        return showCustomAlert('Error', 'Location permission is required to get your exact location. Please allow it in your browser/device settings.', 'error');
+      }
+      
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      lat = loc.coords.latitude;
+      lng = loc.coords.longitude;
+
       const visitData = {
         employeeId: user._id || user.id,
         clientName,
+        cityName,
         purpose: visitPurpose,
         imageUrl: visitImageBase64 || "",
         location: {
-          lat: loc.coords.latitude,
-          lng: loc.coords.longitude,
+          lat: lat,
+          lng: lng,
           address: "Site Visit Location"
-        }
+        },
+        farmerDOB: farmerDOB,
+        farmerContact,
+        monthlySellVolume
       };
 
       await axios.post(`${API_URL}/visits/log`, visitData);
       showCustomAlert('Success', 'Visit recorded! Movement tracking started.', 'success');
       setClientName('');
+      setCityName('');
       setVisitPurpose('');
       setVisitImage(null);
       setVisitImageBase64(null);
-      const startLoc = { lat: loc.coords.latitude, lng: loc.coords.longitude };
+      setFarmerDOB('');
+      setFarmerContact('');
+      setMonthlySellVolume('');
+      const startLoc = { lat: lat, lng: lng };
       setVisitStartLocation(startLoc);
       startTracking(startLoc);
       setActiveTab('Home');
@@ -529,7 +583,7 @@ export default function App() {
             <div class="header">
               <div class="brand-container">
                 <div class="brand-logo-premium">
-                  <img src="./kusum_farm_premium.png" alt="Logo" />
+                  <img src="${LOGO_BASE64}" alt="Logo" />
                 </div>
                 <div class="brand-name">KUSUM FARM</div>
               </div>
@@ -577,8 +631,8 @@ export default function App() {
               <thead>
                 <tr>
                   <th>Date</th>
-                  <th>Check In</th>
-                  <th>Check Out</th>
+                  <th>Punch In</th>
+                  <th>Punch Out</th>
                   <th>Status</th>
                   <th>Hours</th>
                 </tr>
@@ -587,8 +641,8 @@ export default function App() {
                 ${monthLogs.length > 0 ? monthLogs.map(log => `
                   <tr>
                     <td>${new Date(log.date).toLocaleDateString('en-US', { day: '2-digit', month: 'short', weekday: 'short' })}</td>
-                    <td>${log.punches?.find(p => p.type === 'In')?.time || '-'}</td>
-                    <td>${(log.punches?.filter(p => p.type === 'Out').slice(-1)[0])?.time || '-'}</td>
+                    <td>${formatPunchTime(log.punches?.find(p => p.type === 'In'))}</td>
+                    <td>${formatPunchTime(log.punches?.filter(p => p.type === 'Out').slice(-1)[0])}</td>
                     <td class="${log.status === 'Checked In' || log.status === 'Present' ? 'status-present' : 'status-absent'}">${log.status}</td>
                     <td>${log.totalWorkingHours || '00h 00m'}</td>
                   </tr>
@@ -707,7 +761,7 @@ export default function App() {
           </View>
           <View style={styles.locInfo}>
             <Text style={styles.locLabel}>Live Location</Text>
-            <Text style={styles.locVal} numberOfLines={1}>{locationName}</Text>
+            <Text style={styles.locVal} numberOfLines={2}>{locationName}</Text>
           </View>
           <View style={styles.livePulseContainer}>
             <View style={styles.livePulse} />
@@ -755,7 +809,7 @@ export default function App() {
               onPress={handlePunch}
               disabled={loading}
             >
-              {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.punchBtnText}>{isCheckedIn ? 'Check Out' : 'Check In'}</Text>}
+              {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.punchBtnText}>{isCheckedIn ? 'Punch Out' : 'Punch In'}</Text>}
             </TouchableOpacity>
           </View>
 
@@ -763,16 +817,16 @@ export default function App() {
             <View style={styles.statItem}>
               <View style={styles.statCircle}><Clock color="#2563EB" size={16} /></View>
               <Text style={styles.statVal}>10:00 AM</Text>
-              <Text style={styles.statLabel}>Check In</Text>
+              <Text style={styles.statLabel}>Punch In</Text>
             </View>
             <View style={styles.statItem}>
               <View style={styles.statCircle}><Clock color="#2563EB" size={16} /></View>
               <Text style={styles.statVal}>06:30 PM</Text>
-              <Text style={styles.statLabel}>Check Out</Text>
+              <Text style={styles.statLabel}>Punch Out</Text>
             </View>
             <View style={styles.statItem}>
               <View style={styles.statCircle}><Clock color="#059669" size={16} /></View>
-              <Text style={styles.statVal}>{attendanceHistory.find(a => a.date === new Date().toISOString().split('T')[0])?.totalWorkingHours || '00h 00m'}</Text>
+              <Text style={styles.statVal}>{attendanceHistory.find(a => a.date === new Date().toLocaleDateString('en-CA'))?.totalWorkingHours || '00h 00m'}</Text>
               <Text style={styles.statLabel}>Working HR's</Text>
             </View>
           </View>
@@ -868,14 +922,14 @@ export default function App() {
                     <View style={styles.attStat}>
                       <View style={styles.attIconSmall}><Clock color="#16A34A" size={12} /></View>
                       <View>
-                        <Text style={[styles.attStatVal, { color: '#16A34A' }]}>{item.punches?.find(p => p.type === 'In')?.time || '-'}</Text>
+                        <Text style={[styles.attStatVal, { color: '#16A34A' }]}>{formatPunchTime(item.punches?.find(p => p.type === 'In'))}</Text>
                         <Text style={styles.attStatLabel}>In</Text>
                       </View>
                     </View>
                     <View style={styles.attStat}>
                       <View style={styles.attIconSmall}><LogOut color="#DC2626" size={12} /></View>
                       <View>
-                        <Text style={[styles.attStatVal, { color: '#DC2626' }]}>{(item.punches?.filter(p => p.type === 'Out').slice(-1)[0])?.time || '-'}</Text>
+                        <Text style={[styles.attStatVal, { color: '#DC2626' }]}>{formatPunchTime(item.punches?.filter(p => p.type === 'Out').slice(-1)[0])}</Text>
                         <Text style={styles.attStatLabel}>Out</Text>
                       </View>
                     </View>
@@ -964,10 +1018,73 @@ export default function App() {
               <TextInput style={styles.formInput} placeholder="Enter name" value={clientName} onChangeText={setClientName} />
             </View>
 
+            <Text style={styles.formLabel}>City Name</Text>
+            <View style={styles.formInputBox}>
+              <MapPin color="#64748B" size={20} />
+              <TextInput style={styles.formInput} placeholder="Enter city name" value={cityName} onChangeText={setCityName} />
+            </View>
+
             <Text style={styles.formLabel}>Purpose of Visit</Text>
             <View style={styles.formInputBox}>
               <Briefcase color="#64748B" size={20} />
               <TextInput style={styles.formInput} placeholder="e.g. Product Demo" value={visitPurpose} onChangeText={setVisitPurpose} />
+            </View>
+
+            <Text style={styles.formLabel}>Farmer Date of Birth</Text>
+            {Platform.OS === 'web' ? (
+              <View style={styles.formInputBox}>
+                <Calendar color="#64748B" size={20} style={{ flexShrink: 0 }} />
+                {createElement('input', {
+                  type: 'date',
+                  value: farmerDOB ? farmerDOB.split('/').reverse().join('-') : '',
+                  onChange: (e) => {
+                    if (e.target.value) {
+                      const [y, m, d] = e.target.value.split('-');
+                      setFarmerDOB(`${d}/${m}/${y}`);
+                    } else {
+                      setFarmerDOB('');
+                    }
+                  },
+                  style: { flex: 1, height: '100%', border: 'none', background: 'transparent', outline: 'none', fontSize: 15, fontWeight: '600', color: '#0F172A', marginLeft: 8 }
+                })}
+              </View>
+            ) : (
+              <>
+                <TouchableOpacity style={styles.formInputBox} onPress={() => setShowFarmerDOBPicker(true)}>
+                  <Calendar color="#64748B" size={20} />
+                  <Text style={[styles.formInput, { paddingTop: 15, color: farmerDOB ? '#0F172A' : '#94A3B8' }]}>
+                    {farmerDOB || 'Select Date of Birth'}
+                  </Text>
+                </TouchableOpacity>
+                {showFarmerDOBPicker && (
+                  <DateTimePicker
+                    value={farmerDOB ? new Date(farmerDOB.split('/').reverse().join('-')) : new Date(1990, 0, 1)}
+                    mode="date"
+                    display="default"
+                    onChange={(event, selectedDate) => {
+                      setShowFarmerDOBPicker(Platform.OS === 'ios');
+                      if (selectedDate) {
+                        const dd = String(selectedDate.getDate()).padStart(2, '0');
+                        const mm = String(selectedDate.getMonth() + 1).padStart(2, '0');
+                        const yyyy = selectedDate.getFullYear();
+                        setFarmerDOB(`${dd}/${mm}/${yyyy}`);
+                      }
+                    }}
+                  />
+                )}
+              </>
+            )}
+
+            <Text style={styles.formLabel}>Farmer Contact Number</Text>
+            <View style={styles.formInputBox}>
+              <Phone color="#64748B" size={20} />
+              <TextInput style={styles.formInput} placeholder="Enter 10-digit number" value={farmerContact} onChangeText={setFarmerContact} keyboardType="phone-pad" maxLength={10} />
+            </View>
+
+            <Text style={styles.formLabel}>Monthly Sell Volume (kg/tons)</Text>
+            <View style={styles.formInputBox}>
+              <TrendingUp color="#64748B" size={20} />
+              <TextInput style={styles.formInput} placeholder="e.g. 500 kg" value={monthlySellVolume} onChangeText={setMonthlySellVolume} />
             </View>
 
             <Text style={styles.formLabel}>Site Photo</Text>
@@ -1200,6 +1317,20 @@ export default function App() {
 
   return (
     <SafeAreaView style={styles.container}>
+      {Platform.OS === 'web' && createElement('style', null, `
+        input[type="date"]::-webkit-calendar-picker-indicator {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          opacity: 0;
+          cursor: pointer;
+        }
+        input[type="date"]::-webkit-inner-spin-button {
+          display: none;
+        }
+      `)}
       <StatusBar barStyle="light-content" />
       {activeTab === 'Home' ? renderHome() :
         activeTab === 'Attendance' ? renderAttendance() :
@@ -1268,42 +1399,106 @@ export default function App() {
             </View>
 
             <Text style={styles.formLabel}>Leave Type</Text>
-            <View style={styles.modalInputBox}>
-              <Leaf color="#2563EB" size={20} />
-              <TextInput style={styles.formInput} value={lType} onChangeText={setLType} placeholder="e.g. Casual Leave" />
-            </View>
+            <TouchableOpacity 
+              style={[styles.modalInputBox, { justifyContent: 'space-between', paddingRight: 16, marginBottom: showLeaveDropdown ? 16 : 16 }]} 
+              onPress={() => setShowLeaveDropdown(!showLeaveDropdown)}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Leaf color="#2563EB" size={20} />
+                <Text style={{ marginLeft: 10, fontSize: 15, fontWeight: '600', color: '#0F172A' }}>{lType}</Text>
+              </View>
+              <ChevronRight color="#64748B" size={20} style={{ transform: [{ rotate: showLeaveDropdown ? '-90deg' : '90deg' }] }} />
+            </TouchableOpacity>
+
+            {showLeaveDropdown && (
+              <View style={{ backgroundColor: '#fff', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 16, marginTop: -8, marginBottom: 16, overflow: 'hidden', elevation: 3, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10 }}>
+                {['Casual Leave', 'Sick Leave'].map((type, index) => (
+                  <TouchableOpacity 
+                    key={type} 
+                    style={{ padding: 14, flexDirection: 'row', alignItems: 'center', borderBottomWidth: index === 1 ? 0 : 1, borderBottomColor: '#F1F5F9', backgroundColor: lType === type ? '#EFF6FF' : '#fff' }}
+                    onPress={() => {
+                      setLType(type);
+                      setShowLeaveDropdown(false);
+                    }}
+                  >
+                    {lType === type ? <CheckCircle2 color="#2563EB" size={16} /> : <View style={{ width: 16 }} />}
+                    <Text style={{ fontSize: 15, marginLeft: 10, color: lType === type ? '#1D4ED8' : '#334155', fontWeight: lType === type ? '600' : '500' }}>{type}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
 
             <View style={{ flexDirection: 'row', gap: 10 }}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.formLabel}>Start Date</Text>
-                <TouchableOpacity style={styles.modalInputBox} onPress={() => setShowStartPicker(true)}>
-                  <Calendar color="#2563EB" size={18} />
-                  <Text style={[styles.formInput, { paddingTop: 15 }]}>{lStart.toLocaleDateString()}</Text>
-                </TouchableOpacity>
-                {showStartPicker && (
-                  <DateTimePicker
-                    value={lStart}
-                    mode="date"
-                    display="default"
-                    onChange={onStartChange}
-                    minimumDate={new Date()}
-                  />
+                {Platform.OS === 'web' ? (
+                  <View style={styles.modalInputBox}>
+                    <Calendar color="#2563EB" size={18} style={{ flexShrink: 0 }} />
+                    {createElement('input', {
+                      type: 'date',
+                      value: lStart.toLocaleDateString('en-CA'),
+                      min: new Date().toLocaleDateString('en-CA'),
+                      onChange: (e) => {
+                        if (e.target.value) {
+                          const [y, m, d] = e.target.value.split('-');
+                          setLStart(new Date(y, m - 1, d));
+                        }
+                      },
+                      style: { flex: 1, height: '100%', border: 'none', background: 'transparent', outline: 'none', fontSize: 15, fontWeight: '600', color: '#0F172A', marginLeft: 8 }
+                    })}
+                  </View>
+                ) : (
+                  <>
+                    <TouchableOpacity style={styles.modalInputBox} onPress={() => setShowStartPicker(true)}>
+                      <Calendar color="#2563EB" size={18} />
+                      <Text style={[styles.formInput, { paddingTop: 15 }]}>{lStart.toLocaleDateString()}</Text>
+                    </TouchableOpacity>
+                    {showStartPicker && (
+                      <DateTimePicker
+                        value={lStart}
+                        mode="date"
+                        display="default"
+                        onChange={onStartChange}
+                        minimumDate={new Date()}
+                      />
+                    )}
+                  </>
                 )}
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.formLabel}>End Date</Text>
-                <TouchableOpacity style={styles.modalInputBox} onPress={() => setShowEndPicker(true)}>
-                  <Calendar color="#2563EB" size={18} />
-                  <Text style={[styles.formInput, { paddingTop: 15 }]}>{lEnd.toLocaleDateString()}</Text>
-                </TouchableOpacity>
-                {showEndPicker && (
-                  <DateTimePicker
-                    value={lEnd}
-                    mode="date"
-                    display="default"
-                    onChange={onEndChange}
-                    minimumDate={lStart}
-                  />
+                {Platform.OS === 'web' ? (
+                  <View style={styles.modalInputBox}>
+                    <Calendar color="#2563EB" size={18} style={{ flexShrink: 0 }} />
+                    {createElement('input', {
+                      type: 'date',
+                      value: lEnd.toLocaleDateString('en-CA'),
+                      min: lStart.toLocaleDateString('en-CA'),
+                      onChange: (e) => {
+                        if (e.target.value) {
+                          const [y, m, d] = e.target.value.split('-');
+                          setLEnd(new Date(y, m - 1, d));
+                        }
+                      },
+                      style: { flex: 1, height: '100%', border: 'none', background: 'transparent', outline: 'none', fontSize: 15, fontWeight: '600', color: '#0F172A', marginLeft: 8 }
+                    })}
+                  </View>
+                ) : (
+                  <>
+                    <TouchableOpacity style={styles.modalInputBox} onPress={() => setShowEndPicker(true)}>
+                      <Calendar color="#2563EB" size={18} />
+                      <Text style={[styles.formInput, { paddingTop: 15 }]}>{lEnd.toLocaleDateString()}</Text>
+                    </TouchableOpacity>
+                    {showEndPicker && (
+                      <DateTimePicker
+                        value={lEnd}
+                        mode="date"
+                        display="default"
+                        onChange={onEndChange}
+                        minimumDate={lStart}
+                      />
+                    )}
+                  </>
                 )}
               </View>
             </View>
@@ -1452,7 +1647,7 @@ const styles = StyleSheet.create({
   notifTitle: { fontSize: 15, fontWeight: '700', color: '#0F172A', marginBottom: 2 },
   notifMessage: { fontSize: 13, color: '#64748B', lineHeight: 18, marginBottom: 4 },
   notifTime: { fontSize: 11, color: '#94A3B8', fontWeight: '500' },
-  trackingBanner: { flexDirection: 'row', backgroundColor: '#10B981', padding: 14, marginHorizontal: 20, marginTop: -110, borderRadius: 20, alignItems: 'center', justifyContent: 'space-between', zIndex: 100, elevation: 10 },
+  trackingBanner: { flexDirection: 'row', backgroundColor: '#10B981', padding: 14, marginHorizontal: 20, marginTop: -10, marginBottom: 30, borderRadius: 20, alignItems: 'center', justifyContent: 'space-between', zIndex: 100, elevation: 10 },
   trackingBannerText: { color: '#fff', fontWeight: '800', fontSize: 14 },
   punchContainer: { paddingHorizontal: 20, marginTop: -20 },
   punchCard: { backgroundColor: '#fff', borderRadius: 20, padding: 10, elevation: 20, shadowColor: '#2563EB', shadowOpacity: 0.1, shadowRadius: 30 },

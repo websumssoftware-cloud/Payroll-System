@@ -10,7 +10,7 @@ const path = require('path');
 // Log a new visit (Initial Site Record)
 router.post('/log', async (req, res) => {
   try {
-    const { employeeId, clientName, purpose, location, imageUrl } = req.body;
+    const { employeeId, clientName, cityName, purpose, location, imageUrl, farmerDOB, farmerContact, monthlySellVolume } = req.body;
     
     if (!employeeId) return res.status(400).json({ message: 'Employee ID is required' });
     if (!clientName) return res.status(400).json({ message: 'Client Name is required' });
@@ -42,9 +42,13 @@ router.post('/log', async (req, res) => {
     const newVisit = new Visit({
       employeeId,
       clientName,
+      cityName,
       purpose,
       location: location || { lat: 18.52, lng: 73.85, address: 'Field Location' },
-      imageUrl: savedImageUrl
+      imageUrl: savedImageUrl,
+      farmerDOB,
+      farmerContact,
+      monthlySellVolume
     });
 
     await newVisit.save();

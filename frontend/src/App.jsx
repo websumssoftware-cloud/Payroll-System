@@ -11,9 +11,10 @@ import {
   BarChart, Bar 
 } from 'recharts';
 import axios from 'axios';
+import Swal from 'sweetalert2';
 import './App.css';
 import LiveTracking from './components/LiveTracking';
-import logo from './assets/kusum_farm_premium.png';
+import logo from './assets/kusum_cow_logo.jpg';
 
 import { API_URL, BASE_URL } from './config';
 
@@ -39,12 +40,15 @@ const KusumAdmin = ({ onLogout }) => {
   const [employeeFilterView, setEmployeeFilterView] = useState('Weekly');
   const [visitFilterDate, setVisitFilterDate] = useState(new Date().toLocaleDateString('en-CA'));
   const [visitFilterView, setVisitFilterView] = useState('Daily');
+  const [visitCityFilter, setVisitCityFilter] = useState('');
   const [leaveFilterDate, setLeaveFilterDate] = useState(new Date().toLocaleDateString('en-CA'));
   const [leaveFilterView, setLeaveFilterView] = useState('Weekly');
   const [payrollMonth, setPayrollMonth] = useState(new Date().getMonth());
   const [payrollYear, setPayrollYear] = useState(new Date().getFullYear());
+  const [payrollSearchTerm, setPayrollSearchTerm] = useState('');
   const [showPunchLogs, setShowPunchLogs] = useState(false);
   const [selectedAttendance, setSelectedAttendance] = useState(null);
+  const [selectedVisit, setSelectedVisit] = useState(null);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -88,6 +92,68 @@ const KusumAdmin = ({ onLogout }) => {
     }
   };
 
+  const deleteEmployee = async (id) => {
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: "You want to delete this employee?",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#10b981',
+      cancelButtonColor: '#ef4444',
+      confirmButtonText: 'Yes, delete it!'
+    });
+    
+    if (!result.isConfirmed) return;
+
+    try {
+      await axios.delete(`${API_URL}/employees/${id}`);
+      setEmployees(prev => prev.filter(e => e._id !== id));
+      Swal.fire('Deleted!', 'Employee has been deleted.', 'success');
+    } catch (err) {
+      console.error("Error deleting employee:", err);
+      Swal.fire("Error", "Failed to delete employee", "error");
+    }
+  };
+
+  const handleSaveEmployee = async () => {
+    try {
+      const payload = {
+        name: selectedEmp.name || '',
+        email: selectedEmp.email || '',
+        phone: selectedEmp.phone || '',
+        salary: Number(selectedEmp.salary) || 0,
+        designation: selectedEmp.designation || selectedEmp.role || 'Employee',
+        role: 'Employee'
+      };
+      
+      if (modalType === 'add') {
+        payload.password = "Kusum@123";
+        payload.employeeId = "EMP" + Math.floor(1000 + Math.random() * 9000);
+        await axios.post(`${API_URL}/employees`, payload);
+        Swal.fire({ title: 'Success!', text: 'Employee Added Successfully!', icon: 'success', confirmButtonColor: '#10b981' });
+      } else {
+        await axios.put(`${API_URL}/employees/${selectedEmp._id}`, payload);
+        Swal.fire({ title: 'Saved!', text: 'Changes saved successfully!', icon: 'success', confirmButtonColor: '#10b981' });
+      }
+      
+      setShowModal(false);
+      fetchAllData();
+    } catch (err) {
+      console.error("Error saving employee:", err);
+      let errorMsg = 'Failed to save employee';
+      if (err.response && err.response.data) {
+        if (typeof err.response.data === 'string') {
+           errorMsg = `Server Error: ${err.response.status}`;
+        } else {
+           errorMsg = err.response.data.message || JSON.stringify(err.response.data);
+        }
+      } else {
+        errorMsg = err.message || 'Network Error';
+      }
+      Swal.fire({ title: 'Error', text: errorMsg, icon: 'error', confirmButtonColor: '#10b981' });
+    }
+  };
+
   const handleDownload = (data, type) => {
     const slipWindow = window.open('', '_blank');
     let contentHtml = '';
@@ -98,7 +164,11 @@ const KusumAdmin = ({ onLogout }) => {
       const daysInMonth = new Date(currentTime.getFullYear(), currentTime.getMonth() + 1, 0).getDate();
       const empAttendance = attendance.filter(a => (a.employee?._id === data._id || a.employee === data._id) && a.status === 'Checked In').length;
       contentHtml = `
-        <div class="header"><h1>Kusum Farm</h1><p>Salary Slip • ${currentTime.toLocaleString('default', { month: 'long' })} ${currentTime.getFullYear()}</p></div>
+        <div class="header">
+          <img src="${logo}" alt="Kusum Farm" style="height: 70px; object-fit: contain; margin-bottom: 12px; border-radius: 50%; padding: 4px; border: 2px solid #10b981;" />
+          <h1>Kusum Farm</h1>
+          <p>Salary Slip • ${currentTime.toLocaleString('default', { month: 'long' })} ${currentTime.getFullYear()}</p>
+        </div>
         <div class="meta-grid">
           <div class="meta-item"><b>Name</b><span>${data.name}</span></div>
           <div class="meta-item"><b>Designation</b><span>${data.designation || 'Field Staff'}</span></div>
@@ -120,7 +190,11 @@ const KusumAdmin = ({ onLogout }) => {
     } else if (type === 'Monthly Attendance') {
       title = 'Monthly Attendance Report';
       contentHtml = `
-        <div class="header"><h1>Kusum Farm</h1><p>Monthly Attendance Report • ${currentTime.toLocaleString('default', { month: 'long' })} ${currentTime.getFullYear()}</p></div>
+        <div class="header">
+          <img src="${logo}" alt="Kusum Farm" style="height: 70px; object-fit: contain; margin-bottom: 12px; border-radius: 50%; padding: 4px; border: 2px solid #10b981;" />
+          <h1>Kusum Farm</h1>
+          <p>Monthly Attendance Report • ${currentTime.toLocaleString('default', { month: 'long' })} ${currentTime.getFullYear()}</p>
+        </div>
         <table class="salary-table">
           <thead><tr><th>Employee Name</th><th>Employee ID</th><th>Present Days</th><th>Status</th></tr></thead>
           <tbody>
@@ -139,7 +213,11 @@ const KusumAdmin = ({ onLogout }) => {
       title = 'Company Salary Sheet';
       const totalSalary = employees.reduce((sum, e) => sum + (e.salary || 0), 0);
       contentHtml = `
-        <div class="header"><h1>Kusum Farm</h1><p>Consolidated Salary Sheet • ${currentTime.toLocaleString('default', { month: 'long' })} ${currentTime.getFullYear()}</p></div>
+        <div class="header">
+          <img src="${logo}" alt="Kusum Farm" style="height: 70px; object-fit: contain; margin-bottom: 12px; border-radius: 50%; padding: 4px; border: 2px solid #10b981;" />
+          <h1>Kusum Farm</h1>
+          <p>Consolidated Salary Sheet • ${currentTime.toLocaleString('default', { month: 'long' })} ${currentTime.getFullYear()}</p>
+        </div>
         <table class="salary-table">
           <thead><tr><th>Employee Name</th><th>Base Salary</th><th>Allowances</th><th>Net Pay</th></tr></thead>
           <tbody>
@@ -158,7 +236,11 @@ const KusumAdmin = ({ onLogout }) => {
     } else if (type === 'Visit Summary') {
       title = 'Field Visit Summary';
       contentHtml = `
-        <div class="header"><h1>Kusum Farm</h1><p>Field Visit Log • Today's Activity</p></div>
+        <div class="header">
+          <img src="${logo}" alt="Kusum Farm" style="height: 70px; object-fit: contain; margin-bottom: 12px; border-radius: 50%; padding: 4px; border: 2px solid #10b981;" />
+          <h1>Kusum Farm</h1>
+          <p>Field Visit Log • Today's Activity</p>
+        </div>
         <table class="salary-table">
           <thead><tr><th>Employee</th><th>Time</th><th>Location Address</th></tr></thead>
           <tbody>
@@ -167,6 +249,31 @@ const KusumAdmin = ({ onLogout }) => {
                 <td>${v.employeeId?.name || 'Staff'}</td>
                 <td>${new Date(v.timestamp).toLocaleTimeString()}</td>
                 <td>${v.location?.address || 'Site Visit'}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    } else if (type === 'Audit Trail') {
+      title = `Audit Trail - ${data.employee?.name}`;
+      contentHtml = `
+        <div class="header">
+          <img src="${logo}" alt="Kusum Farm" style="height: 70px; object-fit: contain; margin-bottom: 12px; border-radius: 50%; padding: 4px; border: 2px solid #10b981;" />
+          <h1>Kusum Farm</h1>
+          <p>Attendance Audit Trail • ${data.date}</p>
+        </div>
+        <div class="meta-grid" style="margin-bottom: 20px;">
+          <div class="meta-item"><b>Employee Name</b><span>${data.employee?.name || 'Staff'}</span></div>
+          <div class="meta-item"><b>Total Duration</b><span>${data.totalWorkingHours || 'N/A'}</span></div>
+        </div>
+        <table class="salary-table">
+          <thead><tr><th>Action</th><th>Time</th><th>Location / Coordinates</th></tr></thead>
+          <tbody>
+            ${(data.punches || []).map(p => `
+              <tr>
+                <td style="color: ${p.type === 'In' ? '#059669' : '#e11d48'}; font-weight: bold;">PUNCH ${p.type.toUpperCase()}</td>
+                <td>${p.time}</td>
+                <td>${p.location?.address || p.location || 'Location Not Recorded'}</td>
               </tr>
             `).join('')}
           </tbody>
@@ -224,8 +331,8 @@ const KusumAdmin = ({ onLogout }) => {
     const chartData = [...Array(7)].map((_, i) => {
       const d = new Date();
       d.setDate(d.getDate() - (6 - i));
-      const dateStr = d.toISOString().split('T')[0];
-      const count = attendance.filter(a => a.date === dateStr && a.status === 'Checked In').length;
+      const dateStr = d.toLocaleDateString('en-CA');
+      const count = attendance.filter(a => a.date === dateStr && (a.status === 'Checked In' || a.status === 'Late')).length;
       return {
         name: d.toLocaleDateString([], { weekday: 'short' }),
         present: count
@@ -243,13 +350,13 @@ const KusumAdmin = ({ onLogout }) => {
       },
       { 
         title: 'Currently In', 
-        value: attendance.filter(a => a.status === 'Checked In' && a.date === currentTime.toLocaleDateString('en-CA')).length, 
+        value: attendance.filter(a => (a.status === 'Checked In' || a.status === 'Late') && a.date === currentTime.toLocaleDateString('en-CA')).length, 
         icon: <UserCheck size={20} />, 
         color: '#10B981', 
         bg: '#ECFDF5',
         trends: [
           { label: 'Live Status', color: '#10B981' },
-          { label: `${attendance.filter(a => a.status === 'Checked In' && a.date === new Date(Date.now() - 86400000).toISOString().split('T')[0]).length} yesterday`, color: '#64748b' }
+          { label: `${attendance.filter(a => (a.status === 'Checked In' || a.status === 'Late') && a.date === new Date(Date.now() - 86400000).toLocaleDateString('en-CA')).length} yesterday`, color: '#64748b' }
         ]
       },
       { 
@@ -346,7 +453,7 @@ const KusumAdmin = ({ onLogout }) => {
                           </div>
                         </div>
                       </td>
-                      <td className="t-time-s">{inPunch?.time || '--:--'}</td>
+                      <td className="t-time-s">{inPunch?.timestamp ? new Date(inPunch.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : inPunch?.time || '--:--'}</td>
                       <td className="t-loc-s">{inPunch?.location?.address || '---'}</td>
                       <td><span className={`status-tag ${statusClass}`}>{status}</span></td>
                     </tr>
@@ -619,18 +726,18 @@ const KusumAdmin = ({ onLogout }) => {
           {[
             { 
               title: 'Present Today', 
-              value: filteredAttendance.filter(a => a.status === 'Checked In').length, 
-              trend: attendanceView === 'Daily' ? `${((filteredAttendance.filter(a => a.status === 'Checked In').length / (employees.length || 1)) * 100).toFixed(0)}% Rate` : 'Total Present', 
+              value: filteredAttendance.filter(a => a.status === 'Checked In' || a.status === 'Late').length, 
+              trend: attendanceView === 'Daily' ? `${((filteredAttendance.filter(a => a.status === 'Checked In' || a.status === 'Late').length / (employees.length || 1)) * 100).toFixed(0)}% Rate` : 'Total Present', 
               icon: <CheckCircle2 size={20} />, color: '#10B981', bg: '#ECFDF5' 
             },
             { 
               title: 'Late Arrivals', 
-              value: filteredAttendance.filter(a => a.late).length, 
+              value: filteredAttendance.filter(a => a.status === 'Late').length, 
               trend: 'Check Logs', icon: <Clock size={20} />, color: '#F59E0B', bg: '#FFFBEB' 
             },
             { 
               title: 'Absent / Leave', 
-              value: attendanceView === 'Daily' ? Math.max(0, employees.length - filteredAttendance.filter(a => a.status === 'Checked In').length) : filteredAttendance.filter(a => a.status === 'Absent').length, 
+              value: attendanceView === 'Daily' ? Math.max(0, employees.length - filteredAttendance.filter(a => a.status === 'Checked In' || a.status === 'Late').length) : filteredAttendance.filter(a => a.status === 'Absent').length, 
               trend: 'Records', icon: <XCircle size={20} />, color: '#EF4444', bg: '#FEF2F2' 
             },
           ].map((s, i) => (
@@ -681,15 +788,30 @@ const KusumAdmin = ({ onLogout }) => {
                         </div>
                       </td>
                       <td style={{fontWeight: '600', color: '#64748B'}}>{date}</td>
-                      <td className="t-time">{inPunch?.time || '---'}</td>
-                      <td className="t-time">{outPunch?.time || '---'}</td>
+                      <td className="t-time">{inPunch?.timestamp ? new Date(inPunch.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : inPunch?.time || '---'}</td>
+                      <td className="t-time">{outPunch?.timestamp ? new Date(outPunch.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : outPunch?.time || '---'}</td>
                       <td style={{fontWeight: '700', color: 'var(--primary)'}}>{record?.totalWorkingHours || '00h 00m'}</td>
                       <td><span className={`status-pill ${statusClass}`}>{status}</span></td>
                       <td>
                         {record && (
                           <button 
-                            className="view-btn" 
-                            style={{ padding: '4px 8px', fontSize: '11px' }}
+                            style={{ 
+                              padding: '6px 14px', 
+                              fontSize: '12px', 
+                              fontWeight: '700', 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: '6px', 
+                              color: '#2563EB', 
+                              border: '1px solid #BFDBFE', 
+                              background: '#EFF6FF', 
+                              borderRadius: '8px',
+                              cursor: 'pointer',
+                              boxShadow: '0 2px 4px rgba(37,99,235,0.05)',
+                              transition: 'all 0.2s ease'
+                            }}
+                            onMouseOver={(e) => { e.currentTarget.style.background = '#DBEAFE'; }}
+                            onMouseOut={(e) => { e.currentTarget.style.background = '#EFF6FF'; }}
                             onClick={() => { setSelectedAttendance(record); setShowPunchLogs(true); }}
                           >
                             <FileClock size={14} /> Logs
@@ -722,8 +844,9 @@ const KusumAdmin = ({ onLogout }) => {
 
     const filteredVisits = visits.filter(v => {
       const vDate = new Date(v.timestamp).toISOString().split('T')[0];
-      if (visitFilterView === 'Daily') return vDate === visitFilterDate;
-      return vDate >= weekRange.start && vDate <= weekRange.end;
+      const matchesDate = visitFilterView === 'Daily' ? vDate === visitFilterDate : (vDate >= weekRange.start && vDate <= weekRange.end);
+      const matchesCity = visitCityFilter ? (v.cityName || '').toLowerCase().includes(visitCityFilter.toLowerCase()) : true;
+      return matchesDate && matchesCity;
     });
 
     return (
@@ -750,6 +873,16 @@ const KusumAdmin = ({ onLogout }) => {
             }}><ChevronRight size={18} /></button>
           </div>
           <div style={{ flex: 1 }} />
+          <div className="city-filter" style={{ position: 'relative', marginRight: '12px' }}>
+            <MapPin size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748B' }} />
+            <input 
+              type="text" 
+              placeholder="Search by city..." 
+              value={visitCityFilter} 
+              onChange={(e) => setVisitCityFilter(e.target.value)}
+              style={{ padding: '8px 12px 8px 32px', borderRadius: '10px', border: '1px solid #E2E8F0', outline: 'none', fontSize: '0.9rem', width: '200px', backgroundColor: '#F8FAFC', color: '#0F172A', fontWeight: '500', transition: 'all 0.2s' }}
+            />
+          </div>
           <div className="quick-date-picker">
              <input type="date" value={visitFilterDate} onChange={(e) => setVisitFilterDate(e.target.value)} />
           </div>
@@ -770,33 +903,47 @@ const KusumAdmin = ({ onLogout }) => {
                 <div className="visit-time-tag"><Clock size={10} /> {new Date(v.timestamp).toLocaleTimeString()}</div>
               </div>
               <div className="visit-body">
-                <div className="visit-header">
-                  <div>
-                    <h4 className="v-client-name">{v.clientName}</h4>
-                    <p className="v-purpose-text">{v.purpose}</p>
+                <div className="visit-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
+                  <div style={{ flex: 1, minWidth: 0, paddingRight: '8px' }}>
+                    <h4 className="v-client-name" style={{ lineHeight: '1.2', margin: 0, fontSize: '1.15rem', color: '#0F172A', fontWeight: '800', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.clientName}</h4>
+                    {v.cityName && (
+                      <div style={{ fontSize: '0.8rem', color: '#2563EB', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
+                        <MapPin size={12} /> {v.cityName}
+                      </div>
+                    )}
                   </div>
-                  <div className="v-status-live"><div className="dot-live" /> Live Map</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', flexShrink: 0, gap: '6px' }}>
+                    <div className="v-status-live" style={{ whiteSpace: 'nowrap', display: 'flex', alignItems: 'center' }}><div className="dot-live" /> Live Map</div>
+                  </div>
                 </div>
-                <div className="visit-map-container" style={{ margin: '12px 0', borderRadius: '12px', overflow: 'hidden' }}>
-                   <iframe 
-                    width="100%" height="120" frameBorder="0" 
-                    src={`https://maps.google.com/maps?q=${v.location?.lat},${v.location?.lng}&z=15&output=embed`}
-                  />
+                <div style={{ marginTop: '8px' }}>
+                  <p className="v-purpose-text" style={{ fontSize: '0.85rem', color: '#475569', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: '1.4', margin: 0, fontWeight: '500' }}>{v.purpose}</p>
                 </div>
-                <div className="v-footer">
-                  <div className="v-emp-info">
-                    <div className="v-avatar-s">{v.employeeId?.name?.charAt(0) || 'E'}</div>
-                    <div className="v-meta-s">
-                      <span className="v-name-s">{v.employeeId?.name || 'Staff'}</span>
-                      <span className="v-role-s">{v.employeeId?.designation || 'Field Duty'}</span>
+
+                <div style={{ paddingTop: '16px', marginTop: '16px', borderTop: '1px solid #F1F5F9', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'linear-gradient(135deg, #2563EB, #1D4ED8)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.1rem', boxShadow: '0 2px 8px rgba(37,99,235,0.2)' }}>
+                      {v.employeeId?.name?.charAt(0) || 'E'}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '0.65rem', fontWeight: '700', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '2px' }}>Assigned Executive</div>
+                      <div style={{ fontWeight: '700', color: '#0F172A', fontSize: '0.95rem' }}>{v.employeeId?.name || 'Staff Member'}</div>
                     </div>
                   </div>
-                  <button 
-                    className="v-map-btn" 
-                    onClick={() => window.open(`https://www.google.com/maps?q=${v.location?.lat},${v.location?.lng}`, '_blank')}
-                  >
-                    <MapPin size={14} /> Open GPS
-                  </button>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                    <button 
+                      onClick={() => setSelectedVisit(v)}
+                      style={{ padding: '8px', fontSize: '0.85rem', borderRadius: '10px', border: '1px solid #E2E8F0', background: '#F8FAFC', color: '#0F172A', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s' }}
+                    >
+                      <Eye size={14} /> View Details
+                    </button>
+                    <button 
+                      onClick={() => window.open(`https://www.google.com/maps?q=${v.location?.lat},${v.location?.lng}`, '_blank')}
+                      style={{ padding: '8px', fontSize: '0.85rem', borderRadius: '10px', border: 'none', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', cursor: 'pointer', fontWeight: 700, transition: 'all 0.2s' }}
+                    >
+                      <MapPin size={14} /> Open GPS
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -940,7 +1087,7 @@ const KusumAdmin = ({ onLogout }) => {
         {[
           { 
             title: 'Avg. Attendance', 
-            value: `${((attendance.filter(a => a.status === 'Checked In').length / (employees.length || 1)) * 100).toFixed(0)}%`, 
+            value: `${((attendance.filter(a => a.status === 'Checked In' || a.status === 'Late').length / (employees.length || 1)) * 100).toFixed(0)}%`, 
             trend: 'Current Month', icon: <UserCheck size={20} />, color: '#10B981', bg: '#ECFDF5' 
           },
           { 
@@ -994,7 +1141,48 @@ const KusumAdmin = ({ onLogout }) => {
 
   const renderPayroll = () => {
     const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-    const totalSalary = employees.reduce((sum, e) => sum + (e.salary || 0), 0);
+    
+    const daysInMonth = new Date(payrollYear, payrollMonth + 1, 0).getDate();
+    const hasRecords = attendance.some(a => new Date(a.date).getMonth() === payrollMonth && new Date(a.date).getFullYear() === payrollYear);
+
+    const payrollData = employees.map(e => {
+      const empAttendance = attendance.filter(a => {
+        const aDate = new Date(a.date);
+        return (a.employee?._id === e._id || a.employee === e._id) && 
+               (a.status === 'Checked In' || a.status === 'Late') && 
+               aDate.getMonth() === payrollMonth && 
+               aDate.getFullYear() === payrollYear;
+      }).length;
+
+      let approvedLeaveDays = 0;
+      leaves.forEach(l => {
+        if ((l.employeeId?._id === e._id || l.employeeId === e._id) && l.status === 'Approved') {
+          const from = new Date(l.fromDate);
+          const to = new Date(l.toDate);
+          if (from.getMonth() === payrollMonth && from.getFullYear() === payrollYear) {
+            const diffTime = Math.abs(to - from);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+            approvedLeaveDays += diffDays;
+          }
+        }
+      });
+
+      const dailyWage = (e.salary || 0) / daysInMonth;
+      const totalPresentAndLeave = empAttendance + approvedLeaveDays;
+      const missingDays = Math.max(0, daysInMonth - totalPresentAndLeave);
+      const deductions = hasRecords ? Math.round(missingDays * dailyWage) : 0;
+      const netPay = Math.max(0, (e.salary || 0) - deductions);
+
+      return {
+        ...e,
+        empAttendance,
+        approvedLeaveDays,
+        deductions,
+        netPay
+      };
+    });
+
+    const actualTotalPayroll = payrollData.reduce((sum, e) => sum + e.netPay, 0);
     
     return (
       <div className="tab-view animate-fade">
@@ -1021,7 +1209,20 @@ const KusumAdmin = ({ onLogout }) => {
               }
             }}><ChevronRight size={18} /></button>
           </div>
-          <div style={{ flex: 1 }} />
+
+          <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
+            <div style={{ position: 'relative', width: '100%', maxWidth: '350px' }}>
+              <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+              <input 
+                type="text" 
+                className="form-input" 
+                placeholder="Search employee by name..." 
+                value={payrollSearchTerm}
+                onChange={(e) => setPayrollSearchTerm(e.target.value)}
+                style={{ paddingLeft: '40px', width: '100%', border: '1px solid var(--border)', borderRadius: '10px' }}
+              />
+            </div>
+          </div>
           <div className="quick-date-picker" style={{ display: 'flex', gap: '10px' }}>
             <select 
               value={payrollMonth} 
@@ -1040,31 +1241,18 @@ const KusumAdmin = ({ onLogout }) => {
           </div>
         </div>
 
+
         <div className="payroll-summary-grid">
-          <div className="payroll-card total"><h5>Total Payroll</h5><h3>₹ {totalSalary.toLocaleString()}</h3><p>For {months[payrollMonth]} {payrollYear}</p></div>
-          <div className="payroll-card disbursed"><h5>Disbursed</h5><h3>₹ {(totalSalary * 0.7).toLocaleString()}</h3><div className="progress-bar"><div className="progress" style={{width: '70%'}} /></div></div>
-          <div className="payroll-card pending"><h5>Pending</h5><h3>₹ {(totalSalary * 0.3).toLocaleString()}</h3><p>Settlement in progress</p></div>
+          <div className="payroll-card total"><h5>Total Payroll</h5><h3>₹ {actualTotalPayroll.toLocaleString()}</h3><p>For {months[payrollMonth]} {payrollYear}</p></div>
+          <div className="payroll-card disbursed"><h5>Disbursed</h5><h3>₹ {(Math.round(actualTotalPayroll * 0.7)).toLocaleString()}</h3><div className="progress-bar"><div className="progress" style={{width: '70%'}} /></div></div>
+          <div className="payroll-card pending"><h5>Pending</h5><h3>₹ {(Math.round(actualTotalPayroll * 0.3)).toLocaleString()}</h3><p>Settlement in progress</p></div>
         </div>
         <div className="grid-card full-card">
           <div className="table-responsive">
             <table className="modern-table">
               <thead><tr><th>Employee</th><th>Attendance</th><th>Deductions</th><th>Net Pay</th><th>Status</th><th>Actions</th></tr></thead>
               <tbody>
-                {employees.map((e) => {
-                  const empAttendance = attendance.filter(a => {
-                    const aDate = new Date(a.date);
-                    return (a.employee?._id === e._id || a.employee === e._id) && 
-                           a.status === 'Checked In' && 
-                           aDate.getMonth() === payrollMonth && 
-                           aDate.getFullYear() === payrollYear;
-                  }).length;
-
-                  const daysInMonth = new Date(payrollYear, payrollMonth + 1, 0).getDate();
-                  const dailyWage = e.salary / daysInMonth;
-                  // Simplified deduction: deduct for missing days if attendance is recorded for that month
-                  const hasRecords = attendance.some(a => new Date(a.date).getMonth() === payrollMonth && new Date(a.date).getFullYear() === payrollYear);
-                  const deductions = hasRecords ? Math.round((daysInMonth - empAttendance) * 0) : 0; // Keeping 0 for demo seed consistency
-                  
+                {payrollData.filter(e => e.name.toLowerCase().includes(payrollSearchTerm.toLowerCase())).map((e) => {
                   return (
                     <tr key={e._id}>
                       <td>
@@ -1073,10 +1261,10 @@ const KusumAdmin = ({ onLogout }) => {
                           <div className="u-name">{e.name}</div>
                         </div>
                       </td>
-                      <td>{empAttendance}/{daysInMonth} Days</td>
-                      <td>₹{deductions.toLocaleString()} (Leaves)</td>
-                      <td className="salary-text">₹{(e.salary - deductions).toLocaleString()}</td>
-                      <td><span className="pay-status paid">Paid</span></td>
+                      <td>{e.empAttendance}/{daysInMonth} Days</td>
+                      <td>₹{e.deductions.toLocaleString()} (Leaves)</td>
+                      <td className="salary-text">₹{e.netPay.toLocaleString()}</td>
+                      <td><span className={`pay-status ${e.deductions > 0 ? 'late' : 'paid'}`}>{e.deductions > 0 ? 'Adjusted' : 'Paid'}</span></td>
                       <td><button className="download-slip-btn" onClick={() => handleDownload(e, 'Salary Slip')}><Download size={14} /> Slip</button></td>
                     </tr>
                   );
@@ -1214,39 +1402,55 @@ const KusumAdmin = ({ onLogout }) => {
                   <div className="premium-field full-width">
                     <label>Full Name</label>
                     <div className="premium-input-box">
-                      <input readOnly={modalType === 'view'} defaultValue={selectedEmp.name} placeholder="Rahul Singh" />
+                      <input readOnly={modalType === 'view'} value={selectedEmp?.name || ''} onChange={e => setSelectedEmp({...selectedEmp, name: e.target.value})} placeholder="Rahul Singh" />
                     </div>
                   </div>
                   <div className="premium-field">
                     <label>Email Address</label>
                     <div className="premium-input-box">
-                      <input readOnly={modalType === 'view'} defaultValue={selectedEmp.email} placeholder="rahul@kusum.com" />
+                      <input readOnly={modalType === 'view'} value={selectedEmp?.email || ''} onChange={e => setSelectedEmp({...selectedEmp, email: e.target.value})} placeholder="rahul@kusum.com" />
                     </div>
                   </div>
                   <div className="premium-field">
                     <label>Phone Number</label>
                     <div className="premium-input-box">
-                      <input readOnly={modalType === 'view'} defaultValue={selectedEmp.phone} placeholder="9876543203" />
+                      <input readOnly={modalType === 'view'} value={selectedEmp?.phone || ''} onChange={e => { const val = e.target.value.replace(/\D/g, ''); if(val.length <= 10) setSelectedEmp({...selectedEmp, phone: val}); }} maxLength={10} placeholder="9876543203" />
                     </div>
                   </div>
                   <div className="premium-field">
                     <label>Base Salary (₹)</label>
                     <div className="premium-input-box">
-                      <input readOnly={modalType === 'view'} defaultValue={selectedEmp.salary} placeholder="35000" />
+                      <input type="number" readOnly={modalType === 'view'} value={selectedEmp?.salary || ''} onChange={e => setSelectedEmp({...selectedEmp, salary: e.target.value})} placeholder="35000" />
                     </div>
                   </div>
                   <div className="premium-field">
                     <label>Work Role</label>
                     <div className="premium-input-box">
-                      <input readOnly={modalType === 'view'} defaultValue={selectedEmp.designation || selectedEmp.role} placeholder="Employee" />
+                      <input readOnly={modalType === 'view'} value={selectedEmp?.designation || selectedEmp?.role || ''} onChange={e => setSelectedEmp({...selectedEmp, designation: e.target.value})} placeholder="Employee" />
                     </div>
                   </div>
                 </div>
               </div>
-              <div className="modal-footer-premium">
-                <button className="btn-cancel-ghost" onClick={() => setShowModal(false)}>Cancel</button>
+              <div className="modal-footer-premium" style={{ display: 'flex', justifyContent: 'flex-end', gap: '15px', padding: '20px 30px', borderTop: '1px solid #f1f5f9', background: '#f8fafc', borderBottomLeftRadius: '30px', borderBottomRightRadius: '30px' }}>
+                <button 
+                  style={{
+                    padding: '10px 20px', background: 'transparent', color: '#64748b', border: '1px solid #cbd5e1', borderRadius: '10px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s ease'
+                  }}
+                  onMouseOver={e => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.color = '#334155'; }}
+                  onMouseOut={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#64748b'; }}
+                  onClick={() => setShowModal(false)}
+                >
+                  Cancel
+                </button>
                 {modalType !== 'view' && (
-                  <button className="btn-save-premium" onClick={() => { alert(modalType === 'add' ? 'Added Successfully!' : 'Saved Successfully!'); setShowModal(false); }}>
+                  <button 
+                    style={{
+                      padding: '10px 24px', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '600', cursor: 'pointer', boxShadow: '0 4px 12px rgba(16,185,129,0.2)', transition: 'all 0.2s ease'
+                    }}
+                    onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 16px rgba(16,185,129,0.3)'; }}
+                    onMouseOut={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(16,185,129,0.2)'; }}
+                    onClick={handleSaveEmployee}
+                  >
                     {modalType === 'add' ? 'Create Employee' : 'Save Changes'}
                   </button>
                 )}
@@ -1254,13 +1458,97 @@ const KusumAdmin = ({ onLogout }) => {
             </div>
           </div>
         )}
+        
+        {selectedVisit && (
+          <div className="modal-overlay animate-fade">
+            <div className="modal-content" style={{ maxWidth: '600px', width: '90%', padding: '0', maxHeight: '90vh', overflow: 'hidden' }}>
+              <div style={{ position: 'relative' }}>
+                <img 
+                  src={selectedVisit.imageUrl ? (selectedVisit.imageUrl.startsWith('/uploads') ? `${BASE_URL}${selectedVisit.imageUrl}` : selectedVisit.imageUrl) : 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=600'} 
+                  alt="Field" 
+                  style={{ width: '100%', height: '220px', objectFit: 'cover', borderTopLeftRadius: '30px', borderTopRightRadius: '30px' }}
+                  onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=600'; e.target.onerror = null; }}
+                />
+                <button className="close-btn-ghost" onClick={() => setSelectedVisit(null)} style={{ position: 'absolute', top: '15px', right: '15px', background: 'rgba(255,255,255,0.9)', padding: '6px', borderRadius: '50%', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+                  <XCircle size={24} color="#0F172A" />
+                </button>
+              </div>
+              
+              <div style={{ padding: '24px' }}>
+                <div style={{ marginBottom: '24px', borderBottom: '1px solid #F1F5F9', paddingBottom: '20px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                    <h3 style={{ fontSize: '1.25rem', fontWeight: '800', color: '#0F172A', letterSpacing: '-0.5px', margin: 0, lineHeight: '1.2' }}>{selectedVisit.clientName}</h3>
+                    <span style={{ background: 'linear-gradient(135deg, #10B981, #059669)', color: '#FFFFFF', padding: '4px 10px', borderRadius: '16px', fontSize: '0.65rem', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.5px', boxShadow: '0 4px 10px rgba(16, 185, 129, 0.2)', flexShrink: 0 }}>
+                      Completed
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', color: '#64748B', fontSize: '0.8rem', fontWeight: '600' }}>
+                    <Clock size={14} color="#94A3B8" style={{ marginRight: '6px' }} /> 
+                    <span>{new Date(selectedVisit.timestamp).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                    <span style={{ margin: '0 8px', color: '#CBD5E1' }}>•</span>
+                    <span>{new Date(selectedVisit.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
+                  </div>
+                </div>
+
+                <div style={{ background: '#F8FAFC', borderRadius: '12px', padding: '16px', marginBottom: '20px', border: '1px solid #F1F5F9' }}>
+                  <h4 style={{ fontSize: '0.75rem', fontWeight: '700', color: '#475569', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '1px' }}>Visit Details</h4>
+                  
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', color: '#94A3B8', marginBottom: '4px', fontWeight: '500' }}>Purpose of Visit</label>
+                      <span style={{ color: '#1E293B', fontWeight: '600', fontSize: '0.9rem' }}>{selectedVisit.purpose || 'N/A'}</span>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', color: '#94A3B8', marginBottom: '4px', fontWeight: '500' }}>City Name</label>
+                      <span style={{ color: '#1E293B', fontWeight: '600', fontSize: '0.9rem' }}>{selectedVisit.cityName || 'N/A'}</span>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', color: '#94A3B8', marginBottom: '4px', fontWeight: '500' }}>Farmer Contact</label>
+                      <span style={{ color: '#1E293B', fontWeight: '600', fontSize: '0.9rem' }}>{selectedVisit.farmerContact || 'N/A'}</span>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', color: '#94A3B8', marginBottom: '4px', fontWeight: '500' }}>Farmer DOB</label>
+                      <span style={{ color: '#1E293B', fontWeight: '600', fontSize: '0.9rem' }}>{selectedVisit.farmerDOB || 'N/A'}</span>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', color: '#94A3B8', marginBottom: '4px', fontWeight: '500' }}>Monthly Sell Volume</label>
+                      <span style={{ color: '#1E293B', fontWeight: '600', fontSize: '0.9rem' }}>{selectedVisit.monthlySellVolume ? `${selectedVisit.monthlySellVolume}` : 'N/A'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ background: '#F8FAFC', borderRadius: '12px', padding: '16px', border: '1px solid #F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <div style={{ width: '46px', height: '46px', borderRadius: '50%', background: 'linear-gradient(135deg, #2563EB, #1D4ED8)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.2rem', boxShadow: '0 4px 12px rgba(37,99,235,0.25)' }}>
+                      {selectedVisit.employeeId?.name?.charAt(0) || 'E'}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.7rem', fontWeight: '700', color: '#64748B', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px' }}>Assigned Executive</div>
+                      <div style={{ fontWeight: '800', color: '#0F172A', fontSize: '1.05rem' }}>{selectedVisit.employeeId?.name || 'Staff Member'}</div>
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                     <span style={{ background: '#EFF6FF', color: '#2563EB', padding: '6px 12px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: '700' }}>
+                       {selectedVisit.employeeId?.designation || 'Field Duty'}
+                     </span>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Punch Logs Audit Modal */}
         {showPunchLogs && selectedAttendance && (
           <div className="modal-overlay animate-fade">
             <div className="modal-content" style={{ maxWidth: '500px' }}>
-              <div className="modal-header-premium" style={{ marginBottom: '20px' }}>
+              <div className="modal-header-premium" style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h3 className="modal-title-green">Attendance Audit Trail</h3>
-                <button className="close-btn-ghost" onClick={() => setShowPunchLogs(false)}><XCircle size={24} /></button>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                  <button className="btn btn-outline" style={{ padding: '6px 12px', fontSize: '0.85rem' }} onClick={() => handleDownload(selectedAttendance, 'Audit Trail')}><Download size={16} /> PDF</button>
+                  <button className="close-btn-ghost" onClick={() => setShowPunchLogs(false)}><XCircle size={24} /></button>
+                </div>
               </div>
               <div style={{ marginBottom: '20px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: '#f8fafc', padding: '15px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
@@ -1318,7 +1606,18 @@ const KusumAdmin = ({ onLogout }) => {
                       
                       <p style={{ margin: 0, fontSize: '0.85rem', color: '#475569', display: 'flex', alignItems: 'flex-start', gap: '6px', lineHeight: '1.4' }}>
                         <MapPin size={14} color="#94a3b8" style={{ marginTop: '2px', flexShrink: 0 }} /> 
-                        <span>{p.location?.address || 'Site Location Recorded'}</span>
+                        {p.location?.lat && p.location?.lng ? (
+                          <a 
+                            href={`https://www.google.com/maps?q=${p.location.lat},${p.location.lng}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            style={{ color: '#2563EB', textDecoration: 'none', fontWeight: '600' }}
+                          >
+                            {p.location?.address || 'View Location on Google Maps'}
+                          </a>
+                        ) : (
+                          <span>{typeof p.location === 'string' ? p.location : (p.location?.address || 'Site Location Recorded')}</span>
+                        )}
                       </p>
                     </div>
                   </div>
@@ -1411,6 +1710,24 @@ const App = () => {
   useEffect(() => {
     if (token) {
       axios.defaults.headers.common['x-auth-token'] = token;
+      
+      const interceptor = axios.interceptors.response.use(
+        (response) => response,
+        (error) => {
+          if (error.response && error.response.status === 401) {
+            alert('Session expired. Please sign in again.');
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            delete axios.defaults.headers.common['x-auth-token'];
+            setToken(null);
+          }
+          return Promise.reject(error);
+        }
+      );
+      
+      return () => {
+        axios.interceptors.response.eject(interceptor);
+      };
     }
   }, [token]);
 
